@@ -95,7 +95,7 @@ pcb_PTR removeProcQ(pcb_PTR *tp) {
         return NULL;
 
     // First pcb in queue
-    head = (*tp->p_next);
+    head = (*tp)->p_next;
     if (head == *tp) {
         // If queue has only one element
         *tp = NULL;
