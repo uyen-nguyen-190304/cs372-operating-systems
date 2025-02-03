@@ -28,6 +28,9 @@
 
 #define NULL 			    ((void *)0xFFFFFFFF)
 
+/* Maximum number of processes */
+#define MAXPROC         20    /* Max concurrent processes supported */
+
 /* device interrupts */
 #define DISKINT			  3
 #define FLASHINT 		  4
