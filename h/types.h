@@ -16,34 +16,34 @@ typedef signed int cpu_t;
 typedef unsigned int memaddr;
 
 /************************* PROCESS CONTROL BLOCK STRUCTURE *****************************/
-/* Process Control Block (PCB) type */
 
+/* process Control Block (PCB) type */
 typedef struct pcb_t {
 	/* process queue fields */
 	struct pcb_t	*p_next,			/* pointer to next entry */
 					*p_prev,			/* pointer to prev entry */
 
 	/* process tree fields */	
-					*p_prnt,			/* pointer to parent  	 */
-					*p_child,			/* pointer to 1st child  */
-					*p_sib;				/* pointer to sibling	 */
+					*p_prnt,			/* pointer to parent    */
+					*p_child,			/* pointer to 1st child */
+					*p_sib;				/* pointer to sibling   */
 	
 	/* process status information */
 	state_t			p_s;				/* processor state */
 	cpu_t			p_time;				/* cpu time used by proc */
-	int				*p_semAdd;			/* pointer to sema4 on   */
-										/* which process blocked */
+	int				*p_semAdd;			/* pointer to sema4 on which process blocked */
 	
 	support_t		*p_supportStruct; 	/* pointer to support struct */
 } pcb_t, *pcb_PTR;
 
 /************************* SEMAPHORE DESCRIPTOR STRUCTURE *****************************/
 
-
-
-
-
-
+/* semaphore descriptor type */
+typedef struct semd_t {
+	struct semd_t	*s_next;			/* next element on the ASL */
+	int				*s_semAdd;			/* pointer to the semaphore */
+	pcb_t			*s_procQ;			/* tail pointer to a process queue */
+}
 
 /************************* DEVICE STRUCTURES *****************************/
 
