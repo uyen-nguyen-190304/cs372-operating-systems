@@ -22,12 +22,21 @@ HIDDEN semd_t *semdFree_h;
 
 /******************************* HELPER FUNCTIONS *****************************/
 
-HIDDEN semd_PTR findSem(int *semAdd)
-{
+/* 
+ * Function    : findSemaphore
+ * Purpose     : Locate the appropriate position of a given semaphore address
+ *               in the ASL. Return a pointer to the previous node in the ASL 
+ *               where the semaphore should be located.
+ * Parameters  : semAdd - pointer to the semaphore
+ */
+HIDDEN semd_PTR findSemaphore(int *semAdd) {
+    if (semd_h == NULL) return NULL;     // Check if ASL is empty
+
     semd_PTR prev = semd_h;
 
+    // Traverse the ASL while semAdd is greater than the current semaphore's address
     while (prev->s_next != NULL && prev->s_next->s_semAdd < semAdd) {
-       prev = prev->s_next;
+        prev = prev->s_next;
     }
     return prev;
 }
@@ -46,31 +55,32 @@ HIDDEN semd_PTR findSem(int *semAdd)
  * Parameters   : semAdd - pointer to the semaphore
  *                p      - pointer to the pcb to be inserted
  */
-int insertBlocked(int *semAdd, pcb_PTR p)
-{
+int insertBlocked(int *semAdd, pcb_PTR p) {
     semd_PTR prev = findSemaphore(semAdd);
+    if (prev == NULL) return TRUE;          // ASL is uninitialized
+
     semd_PTR current = prev->s_next;
 
-    if (current->s_semAdd == semAdd) {
-        /* Semaphore already exists in ASL */
+    if (current != NULL && current->s_semAdd == semAdd) {
+        // Semaphore already exists in ASL, add process to its queue
         insertProcQ(&current->s_procQ, p);
         p->p_semAdd = semAdd;
         return FALSE;
     }
 
-    /* Allocate a new semaphore */
-    if (semdFree_h == NULL) return TRUE; /* No free semaphores */
+    // Allocate a new semaphore from the free list
+    if (semdFree_h == NULL) return TRUE;    // No more semaphores available
 
     semd_PTR newSem = semdFree_h;
-    semdFree_h = semdFree_h->s_next; /* Remove from free list */
+    semdFree_h = semdFree_h->s_next;        // Remove from the free list
 
-    /* Initialize new semaphore */
+    // Initialize the new semaphore
     newSem->s_semAdd = semAdd;
     newSem->s_procQ = mkEmptyProcQ();
     insertProcQ(&newSem->s_procQ, p);
     p->p_semAdd = semAdd;
 
-    /* Insert into ASL */
+    // Insert new semaphore into the ASL
     newSem->s_next = current;
     prev->s_next = newSem;
 
@@ -89,19 +99,22 @@ int insertBlocked(int *semAdd, pcb_PTR p)
  */
 pcb_PTR removeBlocked(int *semAdd) {
     semd_PTR prev = findSemaphore(semAdd);
+    if (prev == NULL || prev->s_next == NULL || prev->s_next->s_semAdd != semAdd) 
+        return NULL;    // Semaphore not found
+
     semd_PTR current = prev->s_next;
-
-    if (current->s_semAdd != semAdd) return NULL; /* Semaphore not found */
-
     pcb_PTR removedPcb = removeProcQ(&current->s_procQ);
+
+    if (removedPcb != NULL) 
+        removedPcb->p_semAdd = NULL;
+
     if (emptyProcQ(current->s_procQ)) {
-        /* Remove the semaphore from ASL if its queue is empty */
+        // Remove the semaphore from ASL
         prev->s_next = current->s_next;
         current->s_next = semdFree_h;
-        semdFree_h = current; /* Return to free list */
+        semdFree_h = current;
     }
 
-    removedPcb->p_semAdd = NULL;
     return removedPcb;
 }
 
@@ -116,21 +129,23 @@ pcb_PTR removeBlocked(int *semAdd) {
  * Parameters  : p - pointer to the pcb to be removed
  */
 pcb_PTR outBlocked(pcb_PTR p) {
-    if (p == NULL || p->p_semAdd == NULL) return NULL; /* Invalid input */
+    if (p == NULL || p->p_semAdd == NULL) return NULL;  // Invalid input
 
     semd_PTR prev = findSemaphore(p->p_semAdd);
+    if (prev == NULL || prev->s_next == NULL || prev->s_next->s_semAdd != p->p_semAdd) 
+        return NULL;  // Semaphore not found
+    
     semd_PTR current = prev->s_next;
-
-    if (current->s_semAdd != p->p_semAdd) return NULL; /* Semaphore not found */
-
     pcb_PTR removedPcb = outProcQ(&current->s_procQ, p);
+
+    if (removedPcb == NULL) return NULL;  // PCB not found in the queue
+
     if (emptyProcQ(current->s_procQ)) {
-        /* Remove semaphore if its queue is now empty */
+        // Remove semaphore if its queue is now empty
         prev->s_next = current->s_next;
         current->s_next = semdFree_h;
         semdFree_h = current;
     }
-
     return removedPcb;
 }
 
@@ -142,13 +157,12 @@ pcb_PTR outBlocked(pcb_PTR p) {
  *               is empty.
  * Parameters  : semAdd - pointer to the semaphore
  */
-pcb_PTR headBlocked(int *semAdd)
-{
-    semd_PTR prev = findSemd(semAdd);
-    semd_PTR curr = prev->s_next;
+pcb_PTR headBlocked(int *semAdd) {
+    semd_PTR prev = findSemaphore(semAdd);
+    if (prev == NULL || prev->s_next == NULL || prev->s_next->s_semAdd != semAdd) 
+        return NULL;  // Semaphore not found
 
-    if (curr->s_head != semdAdd) return NULL; // Semaphore not found
-    return headProcQ(curr->s_procQ);
+    return headProcQ(prev->s_next->s_procQ);
 }
 
 /*
@@ -158,23 +172,22 @@ pcb_PTR headBlocked(int *semAdd)
  *               once during data structure initialization.
  * Parameters  : None
  */
-void initASL()
-{
+void initASL() {
     static semd_t semdTable[MAXPROC + 2];
-    
-    // Initialize the free list
+
     semdFree_h = NULL;
     for (int i = 0; i < MAXPROC + 2; i++) {
         semdTable[i].s_next = semdFree_h;
+        semdTable[i].s_procQ = mkEmptyProcQ(); 
         semdFree_h = &semdTable[i];
     }
 
-    // Initialize the dummy nodes (head & tail)
-    semd_h = &semdTable[MAXPROC];               // Head dummy node (s_semAdd = 0)
+    // Initialize the dummy head and tail nodes 
+    semd_h = &semdTable[MAXPROC];               
     semd_h->s_semAdd = (int *)0;
     semd_h->s_procQ = NULL;
+    semd_h->s_next = &semdTable[MAXPROC + 1]; 
 
-    semd_h->s_next = &semdTable[MAXPROC + 1];   // Tail dummy node (s_semAdd = MAXINT)
     semd_h->s_next->s_semAdd = (int *)MAXINT;
     semd_h->s_next->s_procQ = NULL;
     semd_h->s_next->s_next = NULL;
