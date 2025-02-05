@@ -44,7 +44,7 @@ HIDDEN semd_PTR findSemaphore(int *semAdd) {
         previous = current; 
         current = current->s_next;
     }
-    return previous; /* return a pointer to the semd that precedes current */
+    return previous; /* Return a pointer to the semd that precedes current */
 }
 
 /******************************* SEMAPHORE MANAGEMENT *****************************/
@@ -72,21 +72,21 @@ int insertBlocked(int *semAdd, pcb_PTR p) {
         if (newSemd == NULL) 
             return TRUE;  /* semdFree list is empty */
 
-    /* Remove newSemd from the free list */
-    semdFree_h = newSemd->s_next;  
+        /* Remove newSemd from the free list */
+        semdFree_h = newSemd->s_next;  
 
-    /* Initialize new semaphore descriptor*/
-    newSemd->s_semAdd = semAdd;
-    newSemd->s_procQ = mkEmptyProcQ();
+        /* Initialize new semaphore descriptor*/
+        newSemd->s_semAdd = semAdd;
+        newSemd->s_procQ = mkEmptyProcQ();
 
-    /* Insert p into the process queue of newSemd */
-    insertProcQ(&(newSemd->s_procQ), p);
-    p->p_semAdd = semAdd;
+        /* Insert p into the process queue of newSemd */
+        insertProcQ(&(newSemd->s_procQ), p);
+        p->p_semAdd = semAdd;
 
-    /* Insert newSemd into the ASL */
-    newSemd->s_next = curr;
-    prev->s_next = newSemd;
-    return FALSE;
+        /* Insert newSemd into the ASL */
+        newSemd->s_next = curr;
+        prev->s_next = newSemd;
+        return FALSE;
     } else {
         /* If the semaphore is already in ASL */
         insertProcQ(&(curr->s_procQ), p);
@@ -185,7 +185,7 @@ void initASL() {
     static semd_t semdTable[MAXPROC + 2];
 
     semdFree_h = NULL;
-    for (i = 0; i < MAXPROC + 2; i++) {
+    for (i = 0; i < MAXPROC; i++) {
         semdTable[i].s_next = semdFree_h;
         semdTable[i].s_procQ = mkEmptyProcQ(); 
         semdFree_h = &semdTable[i];
