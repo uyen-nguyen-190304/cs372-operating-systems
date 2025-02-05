@@ -30,15 +30,21 @@ HIDDEN semd_t *semdFree_h;
  * Parameters  : semAdd - pointer to the semaphore
  */
 HIDDEN semd_PTR findSemaphore(int *semAdd) {
-    if (semd_h == NULL) return NULL;     /* Check if ASL is empty */ 
-
-    semd_PTR prev = semd_h;
+    semd_t *current;
+    semd_t *previous;
+    current = semd_h; 
+    previous = NULL;  
 
     /* Traverse the ASL while semAdd is greater than the current semaphore's address */ 
-    while (prev->s_next != NULL && prev->s_next->s_semAdd < semAdd) {
-        prev = prev->s_next;
+    while (current->s_semAdd < semAdd){ 
+        if (current->s_semAdd == (int*) MAXINT){
+            /* if current is the tail dummy node */
+            return previous;
+        }
+        previous = current; 
+        current = current->s_next;
     }
-    return prev;
+    return previous; /* return a pointer to the semd that precedes current */
 }
 
 /******************************* SEMAPHORE MANAGEMENT *****************************/
