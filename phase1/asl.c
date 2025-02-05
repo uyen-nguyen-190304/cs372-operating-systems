@@ -36,8 +36,8 @@ HIDDEN semd_PTR findSemaphore(int *semAdd) {
     previous = NULL;  
 
     /* Traverse the ASL while semAdd is greater than the current semaphore's address */ 
-    while (current->s_semAdd < semAdd){ 
-        if (current->s_semAdd == (int*) MAXINT){
+    while (current->s_semAdd < semAdd) { 
+        if (current->s_semAdd == (int*) MAXINT) {
             /* if current is the tail dummy node */
             return previous;
         }
@@ -62,29 +62,33 @@ HIDDEN semd_PTR findSemaphore(int *semAdd) {
  *                p      - pointer to the pcb to be inserted
  */
 int insertBlocked(int *semAdd, pcb_PTR p) {
-    if (((findSemaphore(semAdd))->s_next)->s_semAdd != semAdd) {
+    semd_PTR prev = findSemaphore(semAdd);
+    semd_PTR curr = prev->s_next;
+    
+    if (curr->s_semAdd != semAdd) {
         /* If the semaphore is not currently active */
         semd_PTR newSemd = semdFree_h;
 
         if (newSemd == NULL) 
             return TRUE;  /* semdFree list is empty */
 
-    /* semdFree list is not empty */
-    semdFree_h = newSemd->s_next;   /* Adjusting the head pointer of free list */
+    /* Remove newSemd from the free list */
+    semdFree_h = newSemd->s_next;  
 
-    /* Inser newSemd to ASL */
-    newSemd->s_next = (findSemaphore(semAdd))->s_next;
-    (findSemaphore(semAdd))->s_next = newSemd;
-
-    /* Initialize the fields of newSemd */
+    /* Initialize new semaphore descriptor*/
     newSemd->s_semAdd = semAdd;
     newSemd->s_procQ = mkEmptyProcQ();
+
+    /* Insert p into the process queue of newSemd */
     insertProcQ(&(newSemd->s_procQ), p);
     p->p_semAdd = semAdd;
-    return FALSE;
+
+    /* Insert newSemd into the ASL */
+    newSemd->s_next = curr;
+    prev->s_next = newSemd;
     } else {
         /* If the semaphore is already in ASL */
-        insertProcQ(&((findSemaphore(semAdd))->s_next->s_procQ), p);
+        insertProcQ(&(curr->s_procQ), p);
         p->p_semAdd = semAdd;
         return FALSE;
     }
