@@ -46,23 +46,23 @@ pcb_PTR allocPcb()
     pcb_PTR temp = pcbFree_h;
     pcbFree_h = pcbFree_h->p_next;
     
-    // Set queue values to NULL
+    /* Set queue values to NULL */
     temp->p_next = NULL;
     temp->p_prev = NULL;
 
-    // Set tree values to NULL
+    /* Set tree values to NULL */
     temp->p_prnt    = NULL;
     temp->p_child   = NULL;
     temp->p_sibNext = NULL;
     temp->p_sibPrev = NULL;
 
-    // Set semaphore value to NULL 
+    /* Set semaphore value to NULL */ 
     temp->p_semAdd = NULL;
 
-    // Set process status information values to 0 
+    /* Set process status information values to 0 */ 
     temp->p_time = 0;
     
-    // Set support layer values to NULL 
+    /* Set support layer values to NULL */ 
     temp->p_supportStruct = NULL;
 
     return temp;
@@ -77,10 +77,11 @@ pcb_PTR allocPcb()
  */
 void initPcbs() 
 {
+    int i;
     static pcb_t pcbTable[MAXPROC];
 
     pcbFree_h = NULL;
-    for (int i = 0; i < MAXPROC; i++) {
+    for (i = 0; i < MAXPROC; i++) {
         pcbTable[i].p_next = pcbFree_h;
         pcbFree_h = &pcbTable[i];
     }
@@ -121,17 +122,17 @@ int emptyProcQ(pcb_PTR tp)
 void insertProcQ(pcb_PTR *tp, pcb_PTR p) 
 {
     if (*tp == NULL) {
-        // If queue is empty, initialize first element
+        /* If queue is empty, initialize first element */
         p->p_prev = p;
         p->p_next = p;
     } else {
-        // If queue is not empty, insert at tail
-        p->p_next = (*tp)->p_next;      // New pcb points to head
-        (*tp)->p_next->p_prev = p;      // Update old head's previous pointer
-        (*tp)->p_next = p;              // Update old tail's next pointer
-        p->p_prev = *tp;                // New pcb points to tail
+        /* If queue is not empty, insert at tail */
+        p->p_next = (*tp)->p_next;      /* New pcb points to head */
+        (*tp)->p_next->p_prev = p;      /* Update old head's previous pointer */
+        (*tp)->p_next = p;              /* Update old tail's next pointer */
+        p->p_prev = *tp;                /* New pcb points to tail */
     }
-    // Update tail pointer to the new node
+    /* Update tail pointer to the new node */
     *tp = p;                            
 }
 
@@ -145,21 +146,21 @@ void insertProcQ(pcb_PTR *tp, pcb_PTR p)
  */
 pcb_PTR removeProcQ(pcb_PTR *tp) 
 {  
-    // Check if the queue is empty
+    /* Check if the queue is empty */
     if (emptyProcQ(*tp)) return NULL;
 
-    // Get the first pcb in the queue
+    /* Get the first pcb in the queue */
     pcb_PTR head = (*tp)->p_next;
 
     if (head == *tp) {
-        // If queue has only one element, remove it and set tail to NULL
+        /* If queue has only one element, remove it and set tail to NULL */
         *tp = NULL;
     } else {
-        // If queue has multiple elements, update tail pointer
-        (*tp)->p_next = head->p_next;   // Tail now points to new head
-        head->p_next->p_prev = *tp;     // New head points back to tail
+        /* If queue has multiple elements, update tail pointer */
+        (*tp)->p_next = head->p_next;   /* Tail now points to new head */
+        head->p_next->p_prev = *tp;     /* New head points back to tail */
     }
-    // Clear links in the removed pcb
+    /* Clear links in the removed pcb */
     head->p_prev = NULL;
     head->p_next = NULL;
 
@@ -178,10 +179,10 @@ pcb_PTR removeProcQ(pcb_PTR *tp)
  */
 pcb_PTR outProcQ(pcb_PTR *tp, pcb_PTR p) 
 {
-    // Check for NULL pointers
+    /* Check for NULL pointers */
     if (*tp == NULL || p == NULL) return NULL;               
 
-    // Check if p exists in the queue
+    /* Check if p exists in the queue */
     pcb_PTR curr = (*tp);
     do {
         if (curr == p) 
@@ -189,22 +190,22 @@ pcb_PTR outProcQ(pcb_PTR *tp, pcb_PTR p)
         curr = curr->p_next;
     } while (curr != (*tp)->p_next);
 
-    if (curr != p) return NULL;  // p was not found in the queue
+    if (curr != p) return NULL;  /* p was not found in the queue */
 
     if (p->p_next == p) {
-        // Only one element in queue
+        /* Only one element in queue */
         *tp = NULL;
     } else {
-        // Remove p from queue
+        /* Remove p from queue */
         p->p_prev->p_next = p->p_next;
         p->p_next->p_prev = p->p_prev;
 
-        // If p was the tail, update tp
+        /* If p was the tail, update tp */
         if (*tp == p) {
             *tp = p->p_prev;
         }
     }
-    // Clear links in the removed pcb
+    /* Clear links in the removed pcb */
     p->p_next = NULL;
     p->p_prev = NULL;
 
@@ -246,16 +247,16 @@ void insertChild(pcb_PTR prnt, pcb_PTR p)
 {
     if (p == NULL || prnt == NULL) return;
 
-    // Set new parent
+    /* Set new parent */
     p->p_prnt = prnt;
 
     if (emptyChild(prnt)) {
-        // If parent has no children
+        /* If parent has no children */
         prnt->p_child = p;
         p->p_sibNext = NULL;
         p->p_sibPrev = NULL;
     } else {
-        // If parent has at least one child already
+        /* If parent has at least one child already */
         p->p_sibNext = prnt->p_child;
         p->p_sibPrev = NULL;
         prnt->p_child->p_sibPrev = p;
@@ -272,21 +273,21 @@ void insertChild(pcb_PTR prnt, pcb_PTR p)
  */
 pcb_PTR removeChild(pcb_PTR p) 
 {
-    // Return NULL if initially there were no children of p or p is NULL
+    /* Return NULL if initially there were no children of p or p is NULL */
     if (p == NULL || p->p_child == NULL) return NULL; 
 
-    // Store the first child
+    /* Store the first child */
     pcb_PTR firstChild = p->p_child;
 
     if (firstChild->p_sibNext == NULL) {
-        // If p has only one child
+        /* If p has only one child */
         p->p_child = NULL;
     } else {
-        // If p has multiple children
+        /* If p has multiple children */
         p->p_child = firstChild->p_sibNext;
         p->p_child->p_sibPrev = NULL;
     }
-    // Clear links in the removed pcb
+    /* Clear links in the removed pcb */
     firstChild->p_prnt = NULL;
     firstChild->p_sibNext = NULL; 
     firstChild->p_sibPrev = NULL;
@@ -303,27 +304,27 @@ pcb_PTR removeChild(pcb_PTR p)
  */
 pcb_PTR outChild(pcb_PTR p) 
 {
-    // Return NULL if the pcb pointed to by p has no parent
+    /* Return NULL if the pcb pointed to by p has no parent */
     if (p == NULL || p->p_prnt == NULL) 
         return NULL; 
 
     pcb_PTR parent = p->p_prnt;
 
     if (parent->p_child == p) {
-        // If p is the first child, use removeChild
+        /* If p is the first child, use removeChild */
         return removeChild(parent);
     } else {
-        // If p is not the first child
+        /* If p is not the first child */
         if (p->p_sibNext == NULL) {
-            // If p is the last child
+            /* If p is the last child */
             p->p_sibPrev->p_sibNext = NULL;
         } else {
-            // If p is in the middle of its parent's children
+            /* If p is in the middle of its parent's children */
             p->p_sibPrev->p_sibNext = p->p_sibNext;
             p->p_sibNext->p_sibPrev = p->p_sibPrev;
         }
     }
-    // Clear links in the removed pcb
+    /* Clear links in the removed pcb */
     p->p_prnt = NULL;
     p->p_sibNext = NULL;
     p->p_sibPrev = NULL;
