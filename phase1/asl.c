@@ -86,6 +86,7 @@ int insertBlocked(int *semAdd, pcb_PTR p) {
     /* Insert newSemd into the ASL */
     newSemd->s_next = curr;
     prev->s_next = newSemd;
+    return FALSE;
     } else {
         /* If the semaphore is already in ASL */
         insertProcQ(&(curr->s_procQ), p);
