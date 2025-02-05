@@ -62,39 +62,29 @@ HIDDEN semd_PTR findSemaphore(int *semAdd) {
  *                p      - pointer to the pcb to be inserted
  */
 int insertBlocked(int *semAdd, pcb_PTR p) {
-    semd_PTR prev = findSemaphore(semAdd);
-    semd_PTR curr = (prev == NULL) ? semd_h : prev->s_next;
-    
-    /* Check if the semaphore is already active */
-    if (curr->s_semAdd != semAdd) {
-        /* Semaphore is not active */
+    if (((findSemaphore(semAdd))->s_next)->s_semAdd != semAdd) {
+        /* If the semaphore is not currently active */
         semd_PTR newSemd = semdFree_h;
-        if (newSemd == NULL)
-            return TRUE;  
 
-        /* Remove the new semd from the free list */
-        semdFree_h = newSemd->s_next;
+        if (newSemd == NULL) 
+            return TRUE;  /* semdFree list is empty */
 
-        /* Insert newSemd into the ASL. */
-        if (prev == NULL) {
-            newSemd->s_next = semd_h;
-            semd_h = newSemd;
-        } else {
-            newSemd->s_next = prev->s_next;
-            prev->s_next = newSemd;
-        }
+    /* semdFree list is not empty */
+    semdFree_h = newSemd->s_next;   /* Adjusting the head pointer of free list */
 
-        /* Initialize newSemd’s fields */
-        newSemd->s_semAdd = semAdd;
-        newSemd->s_procQ = mkEmptyProcQ();
+    /* Inser newSemd to ASL */
+    newSemd->s_next = (findSemaphore(semAdd))->s_next;
+    (findSemaphore(semAdd))->s_next = newSemd;
 
-        /* Insert the process into the new semaphore's blocked queue */
-        insertProcQ(&(newSemd->s_procQ), p);
-        p->p_semAdd = semAdd;
-        return FALSE;
+    /* Initialize the fields of newSemd */
+    newSemd->s_semAdd = semAdd;
+    newSemd->s_procQ = mkEmptyProcQ();
+    insertProcQ(&(newSemd->s_procQ), p);
+    p->p_semAdd = semAdd;
+    return FALSE;
     } else {
-        /* Semaphore is already active; add the process to its blocked queue */
-        insertProcQ(&(curr->s_procQ), p);
+        /* If the semaphore is already in ASL */
+        insertProcQ(&((findSemaphore(semAdd))->s_next->s_procQ), p);
         p->p_semAdd = semAdd;
         return FALSE;
     }
