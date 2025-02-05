@@ -23,7 +23,8 @@ HIDDEN pcb_PTR pcbFree_h;
  * Purpose   :  Insert the element pointed to by p onto the pcbFree list.
  * Parameters:  p - pointer to the pcb to be freed
  */
-void freePcb(pcb_PTR p) {
+void freePcb(pcb_PTR p) 
+{
     p->p_next = pcbFree_h;
     pcbFree_h = p;
 }
@@ -37,29 +38,31 @@ void freePcb(pcb_PTR p) {
  *             no previous value persists in a pcb when it is reallocated.
  * Parameters: None
  */
-pcb_PTR allocPcb() {
+pcb_PTR allocPcb() 
+{
     if (pcbFree_h == NULL)
         return NULL;
 
     pcb_PTR temp = pcbFree_h;
     pcbFree_h = pcbFree_h->p_next;
     
-    /* set queue values to NULL */
+    // Set queue values to NULL
     temp->p_next = NULL;
     temp->p_prev = NULL;
 
-    /* set tree values to NULL */
-    temp->p_prnt  = NULL;
-    temp->p_child = NULL;
-    temp->p_sib   = NULL;
+    // Set tree values to NULL
+    temp->p_prnt    = NULL;
+    temp->p_child   = NULL;
+    temp->p_sibNext = NULL;
+    temp->p_sibPrev = NULL;
 
-    /* set semaphore value to NULL*/
+    // Set semaphore value to NULL 
     temp->p_semAdd = NULL;
 
-    /* set process status information values to 0 */
+    // Set process status information values to 0 
     temp->p_time = 0;
     
-    /* set support layer values to NULL */
+    // Set support layer values to NULL 
     temp->p_supportStruct = NULL;
 
     return temp;
@@ -72,7 +75,8 @@ pcb_PTR allocPcb() {
  *             once during data structure initialization.
  * Parameters: None
  */
-void initPcbs() {
+void initPcbs() 
+{
     static pcb_t pcbTable[MAXPROC];
 
     pcbFree_h = NULL;
@@ -90,7 +94,8 @@ void initPcbs() {
  *             process queue. Return a pointer to the tail of an empty process queue; i.e. NULL.
  * Parameters: None
  */
-pcb_PTR mkEmptyProcQ() {
+pcb_PTR mkEmptyProcQ() 
+{
     return NULL;
 }
 
@@ -100,7 +105,8 @@ pcb_PTR mkEmptyProcQ() {
  *             Return FALSE otherwise.   
  * Parameters: tp - pointer to the tail of the process queue
  */
-int emptyProcQ(pcb_PTR tp) {
+int emptyProcQ(pcb_PTR tp) 
+{
     return (tp == NULL);
 }
 
@@ -112,7 +118,8 @@ int emptyProcQ(pcb_PTR tp) {
  * Parameters: tp - pointer to the tail of the process queue
  *             p  - pointer to the pcb to be inserted
  */
-void insertProcQ(pcb_PTR *tp, pcb_PTR p) {
+void insertProcQ(pcb_PTR *tp, pcb_PTR p) 
+{
     if (*tp == NULL) {
         // If queue is empty, initialize first element
         p->p_prev = p;
@@ -136,7 +143,8 @@ void insertProcQ(pcb_PTR *tp, pcb_PTR p) {
  *             ment. Update the process queue's tail pointer if necessary.
  * Parameters: tp - pointer to the tail of the process queue
  */
-pcb_PTR removeProcQ(pcb_PTR *tp) {  
+pcb_PTR removeProcQ(pcb_PTR *tp) 
+{  
     // Check if the queue is empty
     if (emptyProcQ(*tp)) return NULL;
 
@@ -168,7 +176,8 @@ pcb_PTR removeProcQ(pcb_PTR *tp) {
  * Parameters: tp - pointer to the tail of the process queue
  *             p  - pointer to the pcb to be removed
  */
-pcb_PTR outProcQ(pcb_PTR *tp, pcb_PTR p) {
+pcb_PTR outProcQ(pcb_PTR *tp, pcb_PTR p) 
+{
     // Check for NULL pointers
     if (*tp == NULL || p == NULL) return NULL;               
 
@@ -209,147 +218,115 @@ pcb_PTR outProcQ(pcb_PTR *tp, pcb_PTR p) {
  *             Return NULL if the process queue is empty.ACK
  * Parameters: tp - pointer to the tail of the process queue
  */
-pcb_PTR headProcQ(pcb_PTR tp) {
-    if (tp == NULL) 
-        return NULL;
-    return tp->p_next;
+pcb_PTR headProcQ(pcb_PTR tp) 
+{
+    return (tp == NULL) ? NULL : tp->p_next;
 }
 
 /******************************* PROCESS TREE MANAGEMENT *****************************/
 
-/* Return TRUE if the pcb pointed to by p has no children. Return
-FALSE otherwise. */
+/*
+ * Function  : emptyChild
+ * Purpose   : Return TRUE if the pcb pointed to by p has no children. 
+ *             Return FALSE otherwise.
+ * Parameters: p - pointer to the pcb
+ */
 int emptyChild(pcb_PTR p) 
 {
     return (p->p_child == NULL); 
 }
 
-/* Make the pcb pointed to by p a child of the pcb pointed to by prnt. */
+/*
+ * Function  : insertChild
+ * Purpose   : Make the pcb pointed to by p a child of the pcb pointed to by prnt.
+ * Parameters: prnt - pointer to the parent pcb
+ *             p    - pointer to the child pcb 
+ */
 void insertChild(pcb_PTR prnt, pcb_PTR p) 
 {
     if (p == NULL || prnt == NULL) return;
 
-    p->p_prnt = prnt;  // Set parent
+    // Set new parent
+    p->p_prnt = prnt;
 
-    // Insert p at the beginning of the parent's child list
-    p->p_sib = prnt->p_child;
-    prnt->p_child = p;
+    if (emptyChild(prnt)) {
+        // If parent has no children
+        prnt->p_child = p;
+        p->p_sibNext = NULL;
+        p->p_sibPrev = NULL;
+    } else {
+        // If parent has at least one child already
+        p->p_sibNext = prnt->p_child;
+        p->p_sibPrev = NULL;
+        prnt->p_child->p_sibPrev = p;
+        prnt->p_child = p;
+    }
 }
 
-/* code for doubly linked list*/
-// void insertChild(pcb_PTR prnt, pcb_PTR p) 
-//{
-//     if (p == NULL || prnt == NULL) return;
-
-//     p->p_prnt = prnt;  // Set parent
-
-//     // Insert p at the beginning of the parent's child list
-//     p->p_sib = prnt->p_child;
-//     p->p_prev_sib = NULL;  // No prev sibling since it's first
-
-//     if (prnt->p_child != NULL) {
-//         prnt->p_child->p_prev_sib = p;  // Update prev first child's back
-//     }
-
-//     prnt->p_child = p;  // Update parent's 1st child ptr
-// }
-
-/* Remove and return the first child of p */
+/*
+ * Function  : removeChild
+ * Purpose   : Make the first child of the pcb pointed to by p no longer a child of p.
+ *             Return NULL if initially there were no children of p. 
+ *             Otherwise, return a pointer to this removed first child pcb.
+ * Parameters: p - pointer to the parent pcb
+ */
 pcb_PTR removeChild(pcb_PTR p) 
 {
-    // return NULL if initially there were no children of p
+    // Return NULL if initially there were no children of p or p is NULL
     if (p == NULL || p->p_child == NULL) return NULL; 
 
+    // Store the first child
     pcb_PTR firstChild = p->p_child;
-    p->p_child = firstChild->p_sib;  // Update parent's child pointer
 
-    firstChild->p_prnt = NULL; // NULL parent for removed first child
-    firstChild->p_sib = NULL; // NULL sibling for removed first child
+    if (firstChild->p_sibNext == NULL) {
+        // If p has only one child
+        p->p_child = NULL;
+    } else {
+        // If p has multiple children
+        p->p_child = firstChild->p_sibNext;
+        p->p_child->p_sibPrev = NULL;
+    }
+    // Clear links in the removed pcb
+    firstChild->p_prnt = NULL;
+    firstChild->p_sibNext = NULL; 
+    firstChild->p_sibPrev = NULL;
 
     return firstChild;
 }
 
-// pcb_PTR removeChild(pcb_PTR p) 
-//{
-//     if (p == NULL || p->p_child == NULL) return NULL; // no p or parent
-
-//     pcb_PTR firstChild = p->p_child;
-//     p->p_child = firstChild->p_sib;  // Update parent's child pointer
-
-//     if (p->p_child != NULL) {
-//         p->p_child->p_prev_sib = NULL;  // Update new 1st child's back link
-//     }
-
-//     firstChild->p_prnt = NULL;
-//     firstChild->p_sib = NULL;
-//     firstChild->p_prev_sib = NULL;
-
-//     return firstChild;
-// }
-
-/* Make the pcb pointed to by p no longer the child of its parent */
+/*
+ * Function     : outChild
+ * Purpose      : Make the pcb pointed to by p no longer the child of its parent.
+ *                If the pcb pointed to by p has no parent, return NULL. Otherwise, return p.
+ *                Note that the element pointed to by p need not be the first child of its parent.
+ * Parameters   : p - pointer to the pcb
+ */
 pcb_PTR outChild(pcb_PTR p) 
 {
-    if (p == NULL || p->p_prnt == NULL) return NULL; // return NULL if the pcb pointed to by p has no parent
+    // Return NULL if the pcb pointed to by p has no parent
+    if (p == NULL || p->p_prnt == NULL) 
+        return NULL; 
 
     pcb_PTR parent = p->p_prnt;
-    pcb_PTR curr = parent->p_child;
-    pcb_PTR prev = NULL;
 
-    // Traverse to find p in parent's child list
-    while (curr != NULL) {
-        if (curr == p) 
-        {  
-            // If p is found in the child list
-            if (prev == NULL) 
-            { 
-                // p is the first child
-                parent->p_child = p->p_sib;
-            } 
-            else 
-            {
-                // p is in the middle or end
-                prev->p_sib = p->p_sib;
-            }
-
-            p->p_prnt = NULL;
-            p->p_sib = NULL;
-            return p;
+    if (parent->p_child == p) {
+        // If p is the first child, use removeChild
+        return removeChild(parent);
+    } else {
+        // If p is not the first child
+        if (p->p_sibNext == NULL) {
+            // If p is the last child
+            p->p_sibPrev->p_sibNext = NULL;
+        } else {
+            // If p is in the middle of its parent's children
+            p->p_sibPrev->p_sibNext = p->p_sibNext;
+            p->p_sibNext->p_sibPrev = p->p_sibPrev;
         }
-        prev = curr;
-        curr = curr->p_sib;
     }
-    
-    return NULL;  // p isn't found in the child list
+    // Clear links in the removed pcb
+    p->p_prnt = NULL;
+    p->p_sibNext = NULL;
+    p->p_sibPrev = NULL;
+
+    return p;
 }
-
-// pcb_PTR outChild(pcb_PTR p) 
-//{
-//     if (p == NULL || p->p_prnt == NULL) return NULL;
-
-//     pcb_PTR parent = p->p_prnt;
-
-//     if (p == parent->p_child) {
-//         // p is 1st child, update parent's child pointer
-//         parent->p_child = p->p_sib;
-//         if (p->p_sib) 
-//              p->p_sib->p_prev_sib = NULL;  // Update backward link idk not sure
-//     } else {
-//         // p is in mid or end, update sibling pointers
-//         if (p->p_prev_sib)
-//              p->p_prev_sib->p_sib = p->p_sib;
-//         if (p->p_sib) 
-//              p->p_sib->p_prev_sib = p->p_prev_sib; 
-//     }
-
-//     // Disconnect p from its parent and siblings
-//     p->p_prnt = NULL;
-//     p->p_sib = NULL;
-//     p->p_prev_sib = NULL;
-    
-//     return p;
-// }
-
-
-
-

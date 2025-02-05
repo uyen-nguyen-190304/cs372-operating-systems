@@ -34,7 +34,7 @@ typedef struct pcb_t {
 	/* process tree fields */	
 					*p_prnt,			/* pointer to parent    */
 					*p_child,			/* pointer to 1st child */
-					*p_sibNext;			/* pointer to next sibling */
+					*p_sibNext,			/* pointer to next sibling */
 					*p_sibPrev;			/* pointer to prev sibling */
 	
 	/* process status information */
