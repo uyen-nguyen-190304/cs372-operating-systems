@@ -16,43 +16,68 @@
 /* Head pointer for the PCB free list */
 HIDDEN pcb_PTR pcbFree_h;
 
-/* Static array of MAXPROC PCBs */
-HIDDEN pcb_t pcbPool[MAXPROC];
-
 /****** ************************* PCB ALLOCATION *****************************/
 
-/* Initialize the PCB free list */
+/*
+ * Function  : initPcbs
+ * Purpose   : Initialize the pcbFree list to contain all the elements of the
+ *             static array of MAXPROC pcbs. This method will be called only
+ *             once during data structure initialization.
+ * Parameters: None
+ */
 void initPcbs() {
-    pcbFree_h = NULL;
+    // Table of proc entries
+    static pcb_t    pcbTable[MAXPROC];
+
+    pcbFree_h = mkEmptyProcQ();
     for (int i = 0; i < MAXPROC; i++) {
-        freePcb(&pcbPool[i]);
+        insertProcQ(&pcbFree_h, &pcbTable[i]);
     }
 }
 
-/* Allocate a PCB from the free list */
+/*
+ * Function :  allocPcb
+ * Purpose  :  Return NULL if the pcbFree list is empty. Otherwise, remove
+ *             an element from the pcbFree list, provide initial values for ALL 
+ *             of the pcbs fields (i.e. NULL and/or 0) and then return a pointer
+ *             to the removed element. pcbs get reused, so it is important that
+ *             no previous value persists in a pcb when it is reallocated.
+ * Parameters: None
+ */
 pcb_PTR allocPcb() {
-    register pcb_PTR p;
-
     if (pcbFree_h == NULL)
         return NULL;
 
-    p = pcbFree_h;
+    pcb_PTR temp = pcbFree_h;
     pcbFree_h = pcbFree_h->p_next;
     
-    /* Reset PCB fields */
-    p->p_next = NULL;
-    p->p_prev = NULL;
-    p->p_prnt = NULL;
-    p->p_child = NULL;
-    p->p_sib = NULL;
-    p->p_semAdd = NULL;
-    p->p_time = 0;
-    p->p_supportStruct = NULL;
+    /* set queue values to NULL */
+    temp->p_next = NULL;
+    temp->p_prev = NULL;
+
+    /* set tree values to NULL */
+    temp->p_prnt  = NULL;
+    temp->p_child = NULL;
+    temp->p_sib   = NULL;
+
+    /* set semaphore value to NULL*/
+    temp->p_semAdd = NULL;
+
+    /* set process status information values to 0 */
+    temp->p_time = 0;
     
-    return p;
+    /* set support layer values to NULL */
+    temp->p_supportStruct = NULL;
+
+    return temp;
 }
 
-/* Return a PCB to the free list */
+/*
+ * Function  :  freePcb
+ * Purpose   :  Insert the element pointed to by p onto the pcbFree list.
+ * Parameters: p - pointer to the pcb to be freed
+ */
+*/
 void freePcb(pcb_PTR p) {
     p->p_next = pcbFree_h;
     pcbFree_h = p;
