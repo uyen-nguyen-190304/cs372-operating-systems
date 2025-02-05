@@ -182,13 +182,16 @@ pcb_PTR outProcQ(pcb_PTR *tp, pcb_PTR p)
     /* Check for NULL pointers */
     if (*tp == NULL || p == NULL) return NULL;               
 
-    /* Check if p exists in the queue */
-    pcb_PTR curr = (*tp);
+    /* Start at the head of the circular queue */
+    pcb_PTR head = (*tp)->p_next;
+    pcb_PTR curr = head;
+
+    /* Traverse the entire queue */
     do {
         if (curr == p) 
-        break;
+            break;
         curr = curr->p_next;
-    } while (curr != (*tp)->p_next);
+    } while (curr != head);
 
     if (curr != p) return NULL;  /* p was not found in the queue */
 
