@@ -26,6 +26,10 @@
 #define HIDDEN			  static
 #define EOS				    '\0'
 
+#ifndef MAXINT
+#define MAXINT 		0xEFFFFFFF
+#endif
+
 #define NULL 			    ((void *)0xFFFFFFFF)
 
 /* Maximum number of processes */
