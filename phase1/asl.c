@@ -63,34 +63,41 @@ HIDDEN semd_PTR findSemaphore(int *semAdd) {
  */
 int insertBlocked(int *semAdd, pcb_PTR p) {
     semd_PTR prev = findSemaphore(semAdd);
-    if (prev == NULL) return TRUE;          /* ASL is uninitialized */ 
+    semd_PTR curr = (prev == NULL) ? semd_h : prev->s_next;
+    
+    /* Check if the semaphore is already active */
+    if (curr->s_semAdd != semAdd) {
+        /* Semaphore is not active */
+        semd_PTR newSemd = semdFree_h;
+        if (newSemd == NULL)
+            return TRUE;  
 
-    semd_PTR current = prev->s_next;
+        /* Remove the new semd from the free list */
+        semdFree_h = newSemd->s_next;
 
-    if (current != NULL && current->s_semAdd == semAdd) {
-        /* Semaphore already exists in ASL, add process to its queue */ 
-        insertProcQ(&current->s_procQ, p);
+        /* Insert newSemd into the ASL. */
+        if (prev == NULL) {
+            newSemd->s_next = semd_h;
+            semd_h = newSemd;
+        } else {
+            newSemd->s_next = prev->s_next;
+            prev->s_next = newSemd;
+        }
+
+        /* Initialize newSemd’s fields */
+        newSemd->s_semAdd = semAdd;
+        newSemd->s_procQ = mkEmptyProcQ();
+
+        /* Insert the process into the new semaphore's blocked queue */
+        insertProcQ(&(newSemd->s_procQ), p);
+        p->p_semAdd = semAdd;
+        return FALSE;
+    } else {
+        /* Semaphore is already active; add the process to its blocked queue */
+        insertProcQ(&(curr->s_procQ), p);
         p->p_semAdd = semAdd;
         return FALSE;
     }
-
-    /* Allocate a new semaphore from the free list */ 
-    if (semdFree_h == NULL) return TRUE;    /* No more semaphores available */
-
-    semd_PTR newSem = semdFree_h;
-    semdFree_h = semdFree_h->s_next;        /* Remove from the free list */
-
-    /* Initialize the new semaphore */ 
-    newSem->s_semAdd = semAdd;
-    newSem->s_procQ = mkEmptyProcQ();
-    insertProcQ(&newSem->s_procQ, p);
-    p->p_semAdd = semAdd;
-
-    /* Insert new semaphore into the ASL */
-    newSem->s_next = current;
-    prev->s_next = newSem;
-
-    return FALSE;
 }
 
 /*
