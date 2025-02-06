@@ -1,11 +1,18 @@
 /******************************* PCB.c ***************************************
  *
+ * Module: Process Control Block Management
  *
- * 
- * 
- * 
- * 
- * 
+ * Description:
+ * This module implements process control block management, including
+ * functions for allocation, deallocation, process queue management, and
+ * process tree management. The PCBs are used to maintain process state
+ * and hierarchical relationships among processes.
+ *
+ * Invariant:
+ * - The PCB free list maintains available PCB structures for reuse.
+ * - Process queues follow a circular doubly linked list structure.
+ * - The process tree maintains parent-child relationships.
+ *
  *****************************************************************************/
 
 #include "../h/pcb.h"
@@ -334,3 +341,5 @@ pcb_PTR outChild(pcb_PTR p)
 
     return p;
 }
+
+/******************************* END OF PCB.c *****************************/

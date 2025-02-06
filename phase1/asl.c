@@ -1,10 +1,19 @@
 /******************************* ASL.c ***************************************
  *
- *
+ * Module: Active Semaphore List Management
  * 
+ * Description:
+ * This module implements the active semaphore list management, including
+ * functions for inserting, removing, and searching for semaphores in the ASL.
+ * The ASL is used to maintain a list of active semaphores and the processes
+ * that are blocked on them.
  * 
- * 
- * 
+ * Invariant:
+ * - The ASL maintains a sorted list of active semaphores, sorted in 
+ *   ascending order of addresses, along with a dummy head and a dummy tail.
+ * - Each semaphore descriptor maintains a pointer to the next semaphore descriptor
+ *   and a pointer to the process queue associated with the semaphore.
+ * - All unused semaphore descriptors are maintained in the semdFree list.
  * 
  *****************************************************************************/
 
@@ -201,3 +210,5 @@ void initASL() {
     semd_h->s_next->s_procQ = NULL;
     semd_h->s_next->s_next = NULL;
 }
+
+/******************************* END OF ASL.c *****************************/
