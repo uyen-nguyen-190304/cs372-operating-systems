@@ -12,10 +12,14 @@
 #define WORDLEN			  4				/* word size in bytes	*/
 
 
+#define MAXDEVICES        49            /*  */
+#define NUCLEUSSTACKTOP   0x20001000    /* top of the nucleus stack */
+
+
 /* timer, timescale, TOD-LO and other bus regs */
 #define RAMBASEADDR		0x10000000
 #define RAMBASESIZE		0x10000004
-#define TODLOADDR		  0x1000001C
+#define TODLOADDR		0x1000001C
 #define INTERVALTMR		0x10000020	
 #define TIMESCALEADDR	0x10000024
 
@@ -69,12 +73,12 @@
 #define ACK				    1
 
 /* Memory related constants */
-#define KSEG0           0x00000000
-#define KSEG1           0x20000000
-#define KSEG2           0x40000000
-#define KUSEG           0x80000000
-#define RAMSTART        0x20000000
-#define BIOSDATAPAGE    0x0FFFF000
+#define KSEG0             0x00000000
+#define KSEG1             0x20000000
+#define KSEG2             0x40000000
+#define KUSEG             0x80000000
+#define RAMSTART          0x20000000
+#define BIOSDATAPAGE      0x0FFFF000
 #define	PASSUPVECTOR	  0x0FFFF900
 
 /* Exceptions related constants */
