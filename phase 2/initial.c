@@ -28,10 +28,44 @@ int deviceSemaphores[MAXDEVICES];       /* Semaphores for external devices & pse
 
 extern void test();                     /* Given in the test file */
 extern void uTLB_RefillHandler();       /* TLB-refill handler (stub as for Phase 2) */
-extern void exceptionHandler();         /* Nucleus exception handler (implemented in exceptions.c) */
 
 /******************************* FUNCTION IMPLEMENTATION *****************************/
 
+/*
+ *
+ *
+ * 
+ */
+void generalExceptionHandler() {
+    /* Retrieve the saved state from the BIOS Data Page */
+    state_t *savedState;
+    savedState = (state_t *) BIOSDATAPAGE;
+
+    /* Extract the exception code from cause register */
+    int exceptionCode;
+    exceptionCode = (savedState->s_cause & GETEXCEPCODE) >> CAUSESHIFT;
+
+    /* Determine the type of exception */
+    if (exceptionCode == INTCONST) {
+        /* Code 0: Interrupts -> pass to interrupt handler */
+        interruptionHandler();
+    } else if (exceptionCode >= TLBMIN && exceptionCode <= TLBMAX) {
+        /* Code 1-3: TLB exceptions -> pass to TLB exception handler */
+        TLBExceptionHandler();
+    } else if (exceptionCode == SYSCALLCONST) {
+        /* Code 8: SYSCALL -> pass to SYSCALL exception handler */
+        syscallExceptionHandler();
+    } else {
+        /* Code 4-7, 9-12: Program Traps -> pass to program trap */
+        programTrapExceptionHandler();
+    }
+}
+
+/*
+ *
+ *
+ * 
+ */
 int main() 
 {
     /*--------------------------------------------------------------*
@@ -51,7 +85,7 @@ int main()
     passupvector_t *pv = (passupvector_t *) PASSUPVECTOR;
     pv->tlb_refill_handler  = (memaddr) uTLB_RefillHandler;
     pv->tlb_refill_stackPtr = NUSCLEUSSTACKTOP;                      /* Top of nucleus stack page */
-    pv->exception_handler   = (memaddr) exceptionHandler;
+    pv->exception_handler   = (memaddr) generalExceptionHandler;
     pv->exception_stackPtr  = NUSCLEUSSTACKTOP;                      /* Top of nucleus stack page */
 
 
