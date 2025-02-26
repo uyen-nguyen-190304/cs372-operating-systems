@@ -24,6 +24,9 @@ extern pcb_PTR readyQueue;
 extern pcb_PTR currentProcess;
 extern int deviceSemaphores[MAXDEVICES];
 
+extern int startTOD;
+extern int currentTOD;
+
 /*******************************  FUNCTION DECLARATIONS  *******************************/
 
 /* SYSCALL Exception Handling */
@@ -38,24 +41,6 @@ HIDDEN void getSupportData();
 
 /* */
 HIDDEN void PassUpOrDie();
-
-/*******************************  HELPER FUNCTION  *******************************/ 
-/*
- * Function     :   copyState
- * Purpose      :   The function copies the state of the source state to the destination state.
- * Parameters   :   state_PTR source, state_PTR dest
- */
-void copyState(state_PTR source, state_PTR dest) {
-    dest->s_entryHI = source->s_entryHI;
-    dest->s_cause = source->s_cause;    
-    dest->s_status = source->s_status;
-    dest->s_pc = source->s_pc;
-    
-    int i;
-    for (i = 0; i < STATEREGNUM; i++) {
-        dest->s_reg[i] = source->s_reg[i];
-    }
-}
 
 /*******************************  FUNCTION IMPLEMENTATION  *******************************/ 
 /*
@@ -225,11 +210,20 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
 }
 
 
-
+/*
+ ! SYS6
+ */
 void getCPUTime() {
+    /* Clock current time of day into currentTOD */
+    STCK(currentTOD);
 
+    /* Calculate the elapsed time since dispatched and place in caller's v0 register */
+    currentProcess->p_s.s_v0 = (currentProcess->p_time) + (currentTOD - startTOD);
 
-    
+    /* Update the accumulated CPU time*/
+    currentProcess->p_time  += (currentTOD - startTOD);
+
+    /* Return control to the current process */
     LDST(currentProcess);
 }
 
@@ -252,7 +246,7 @@ void waitForClock() {
     /* Decrement the pseudo-clock semaphore */
     (*pclockSem)--;
 
-    /
+    
 
 
     /* Update the CPU time for the current process */
@@ -278,6 +272,17 @@ void waitForClock() {
 
 
 
+/*
+ ! SYS8
+ */
+void getSupportData() {
+    /* Copy the support structure pointer from the current process to the v0 register */
+    currentProcess->p_s.s_v0 = (int) currentProcess->p_supportStruct;
+
+
+    /* Return control to the current process */
+    LDST(currentProcess);
+}
 
 
 void passUpOrDie() {

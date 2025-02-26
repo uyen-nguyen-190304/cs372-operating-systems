@@ -17,14 +17,14 @@
 
 /* Processor Status - Status Register Constants */
 #define ALLOFF          0x0
-#define IMON            0x2
-#define IEPON           0x00000004
 #define PLTON           0x08000000
 #define IMON            0x0000FF00 
+#define IEPON           0x00000004
+#define IECON           0x00000001
 
 
-
-
+/* timer */
+#define NEVER           0xFFFFFFFF
 
 
 /* timer, timescale, TOD-LO and other bus regs */
