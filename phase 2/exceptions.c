@@ -207,14 +207,25 @@ void verhogen(int *semAdd) {
 }
 
 
-void waitForIODevice() {
+/*
+ ! SYS5 
+ */
+void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
+    int index;
+    index = ((lineNum - OFFSET) * DEVPERINT) + deviceNum;
+    
+    /* decrement the semaphore */
+    /* test if < 0*/
+    /* update cpu time , update state */
+    /* insert into blocked */
+    /* scheduler */
+
+    LDST(currentProcess);
 
 }
 
 
-/*
- ! SYS4 
- */
+
 void getCPUTime() {
 
 
