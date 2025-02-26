@@ -1,6 +1,4 @@
 /******************************* INITIAL.c ***************************************
- *
- * ! Recheck for RMATOP calculation + constants that set for the initial process creation
  * 
  * 
  * 
@@ -14,7 +12,7 @@
 #include "../h/scheduler.h"
 #include "../h/exceptions.h"
 #include "../h/interrupts.h"
-/* #include "/usr/include/umps3/umps/libumps.h"*/
+#include "/usr/include/umps3/umps/libumps.h"
 
 /*************************  NUCLEUS GLOBAL VARIABLES  ************************/
 
@@ -28,6 +26,7 @@ int deviceSemaphores[MAXDEVICES];       /* Semaphores for external devices & pse
 
 extern void test();                     /* Given in the test file */
 extern void uTLB_RefillHandler();       /* TLB-refill handler (stub as for Phase 2) */
+HIDDEN void generalExceptionHandler();  /* General exception handler */
 
 /******************************* FUNCTION IMPLEMENTATION *****************************/
 
@@ -43,7 +42,7 @@ void generalExceptionHandler() {
 
     /* Extract the exception code from cause register */
     int exceptionCode;
-    exceptionCode = (savedState->s_cause & GETEXCEPCODE) >> CAUSESHIFT;
+    exceptionCode = (savedState->s_cause & GETEXCEPCODE) >> CAUSESHIFT;   
 
     /* Determine the type of exception */
     if (exceptionCode == INTCONST) {
@@ -84,9 +83,9 @@ int main()
      *--------------------------------------------------------------*/
     passupvector_t *pv = (passupvector_t *) PASSUPVECTOR;
     pv->tlb_refill_handler  = (memaddr) uTLB_RefillHandler;
-    pv->tlb_refill_stackPtr = NUSCLEUSSTACKTOP;                      /* Top of nucleus stack page */
+    pv->tlb_refill_stackPtr = NUCLEUSSTACKTOP;                      /* Top of nucleus stack page */
     pv->exception_handler   = (memaddr) generalExceptionHandler;
-    pv->exception_stackPtr  = NUSCLEUSSTACKTOP;                      /* Top of nucleus stack page */
+    pv->exception_stackPtr  = NUCLEUSSTACKTOP;                      /* Top of nucleus stack page */
 
 
     /*--------------------------------------------------------------*
@@ -127,7 +126,7 @@ int main()
     initialProc->p_s.s_sp = RAMTOP;                             /* Set the stack pointer to the top of RAM */
     initialProc->p_s.s_pc = (memaddr) test;                     /* Start execution at test */
     initialProc->p_s.s_t9 = (memaddr) test;                     /* Set t9 to test as well */
-    initialProc->p_s.s_status = ALLOFF | IEON | IMON | TEON;    /* Enable interrupts and timer */
+    initialProc->p_s.s_status = ALLOFF | IEPON | PLTON | IMON;    /* Enable interrupts and timer */
     
     /* Set all the Process Tree fields to NULL */
     initialProc->p_prnt       = NULL;

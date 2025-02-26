@@ -13,7 +13,7 @@
 
 
 #define MAXDEVICES          49            /*  */
-#define NUSCLEUSSTACKTOP    0x20001000    /* top of the nucleus stack */
+#define NUCLEUSSTACKTOP     0x20001000    /* top of the nucleus stack */
 
 /* Processor Status - Status Register Constants */
 #define ALLOFF          0x0
