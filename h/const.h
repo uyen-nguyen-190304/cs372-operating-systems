@@ -8,12 +8,22 @@
  ****************************************************************************/
 
 /* Hardware & software constants */
-#define PAGESIZE		  4096			/* page size in bytes	*/
-#define WORDLEN			  4				/* word size in bytes	*/
+#define PAGESIZE		    4096			/* page size in bytes	*/
+#define WORDLEN			    4				/* word size in bytes	*/
 
 
-#define MAXDEVICES        49            /*  */
-#define NUCLEUSSTACKTOP   0x20001000    /* top of the nucleus stack */
+#define MAXDEVICES          49            /*  */
+#define NUSCLEUSSTACKTOP    0x20001000    /* top of the nucleus stack */
+
+/* Processor Status - Status Register Constants */
+#define ALLOFF          0x0
+#define IEON            0x1
+#define IEONOFF         0xFFFFFFFE
+#define IMON            0x2
+#define IMONOFF         0xFFFFFFFD
+#define KUON            0x4
+#define KUONOFF         0xFFFFFFFB
+#define TEON            0x8
 
 
 /* timer, timescale, TOD-LO and other bus regs */
