@@ -17,13 +17,12 @@
 
 /* Processor Status - Status Register Constants */
 #define ALLOFF          0x0
-#define IEON            0x1
-#define IEONOFF         0xFFFFFFFE
 #define IMON            0x2
-#define IMONOFF         0xFFFFFFFD
-#define KUON            0x4
-#define KUONOFF         0xFFFFFFFB
-#define TEON            0x8
+
+
+
+
+
 
 
 /* timer, timescale, TOD-LO and other bus regs */
@@ -90,6 +89,15 @@
 #define RAMSTART          0x20000000
 #define BIOSDATAPAGE      0x0FFFF000
 #define	PASSUPVECTOR	  0x0FFFF900
+
+/* General exception constants */
+#define INTCONST          0         /* Interrupt exception code */
+#define TLBMIN            1         /* Minimum TLB exception code */
+#define TLBMAX            3         /* Maximum TLB exception code */
+#define SYSCALLCONST      8         /* SYSCALL exception code */
+#define GETEXCEPCODE      0x7C      /* Mask for the exception code (bits 6..2) */
+#define CAUSESHIFT        2         /* Number of bits to shift right to get exception code */
+
 
 /* Exceptions related constants */
 #define	PGFAULTEXCEPT	  0
