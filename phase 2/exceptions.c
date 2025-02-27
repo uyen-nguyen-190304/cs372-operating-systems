@@ -1,7 +1,7 @@
 /******************************* EXCEPTIONS.c ***************************************
  *
- * 
- * 
+ *  
+ *
  *
  ***********************************************************************************/
 
@@ -63,14 +63,11 @@ void createProcess(state_PTR initialState, support_t *supportStruct)
         /* Link the new PCB as a child of the current process */
         insertChild(currentProcess, newPcb);
 
-        /* Set the blocking semaphore pointer to NULL, since the process is not blocked */
-        newPcb->p_semAdd = NULL;
-
-        /* Link the new PCB as a child of the current process */
-        insertChild(currentProcess, newPcb);    
-
         /* Insert the new process into the ready queue */
         insertProcQ(&readyQueue, newPcb);
+
+        /* Set the blocking semaphore pointer to NULL, since the process is not blocked */
+        newPcb->p_semAdd = NULL;
 
         /* Initialize accumulated CPU time to zero */
         newPcb->p_time = 0;
@@ -84,14 +81,24 @@ void createProcess(state_PTR initialState, support_t *supportStruct)
 
     /* In case there are no more free pcbs */
     else {
-        /* If allocation fails, return an error code (-1) in caller's v0 register */
+        /* Return an error code (-1) in caller's v0 register */
         currentProcess->p_s.s_v0 = -1;
     }
+
+    /* Clock current TOD to currentTOD */
+    STCK(currentTOD);
+
+    /* Update the accumulated CPU time for current process */
+    currentProcess->p_time += (currentProcess - startTOD);
+
+    /* Return control to the current process */
+    switchContext(currentProcess);
 }
 
 
 /*
  ! SYS2 
+ ! DO THIS AGAIN 
  */
 void terminateProcess(pcb_PTR proc)
 {
@@ -169,7 +176,7 @@ void passeren(int *semAdd) {
     }
 
     /* Else, return to the current process */
-    LDST(currentProcess);
+    switchContext(currentProcess);
 }   
 
 
@@ -188,7 +195,7 @@ void verhogen(int *semAdd) {
         /* Insert the unblocked process into the ready queue */
         insertProcQ(&readyQueue, unblockedProc);
     }
-    LDST(currentProcess);
+    switchContext(currentProcess);
 }
 
 
@@ -224,7 +231,7 @@ void getCPUTime() {
     currentProcess->p_time  += (currentTOD - startTOD);
 
     /* Return control to the current process */
-    LDST(currentProcess);
+    switchContext(currentProcess);
 }
 
 
@@ -241,21 +248,23 @@ void waitForClock() {
      * 
     */
     /* Initiate the semaphore pseudo-clock */
-    int *pclockSem = &deviceSemaphores[PCLOCKIDX];
+    int *pclockSem = &deviceSemaphores[MAXDEVICES - 1];         /* Pseudo-clock semaphore is stored at last index */  
 
     /* Decrement the pseudo-clock semaphore */
     (*pclockSem)--;
 
-    
-
+    /* Update the state of the current process */
+    copyState()
 
     /* Update the CPU time for the current process */
-    cpu_t currentTime;
-    STCK(currentTime);
-    currentProcess->p_time = currentProcess->p_time + (currentTime - currentProcess->p_startTime);
+    STCK(currentTOD);
+    currentProcess->p_time += (currentTOD - startTOD);
 
     /* Insert the current process into blocked queue */
     insertBlocked(pclockSem, currentProcess);
+
+    /* Increment the softBlockCount */
+    softBlockCount++;
 
     /* Clear the currentProcess (since it's blocked) */
     currentProcess = NULL;
@@ -264,30 +273,71 @@ void waitForClock() {
     scheduler();
 
     /* If the scheduler() returns, something went wrong, be PANIC */
-    PANIC();
-
-    
+    PANIC();    
 }
-
-
 
 
 /*
  ! SYS8
  */
 void getSupportData() {
-    /* Copy the support structure pointer from the current process to the v0 register */
-    currentProcess->p_s.s_v0 = (int) currentProcess->p_supportStruct;
+    /* Place the support structure pointer in v0 */
+    currentProcess->p_s.s_v0 = (int)(currentProcess->p_supportStruct);
 
+    /* Update CPU usage time*/
+    STCK(currentTOD);                                   /* Read current Time-Of-Day */
+    currentProcess->p_time += (currentTOD - startTOD);  /* Accumulate the elapsed time since dispatch*/
 
     /* Return control to the current process */
-    LDST(currentProcess);
+    switchContext(currentProcess);
 }
 
 
-void passUpOrDie() {
+/*
+ ! Pass Up Or Die 
+ ! Here, still missing savedExceptState to be defined somewhere
+ */
+void passUpOrDie(int exceptionCode) {
+    /*--------------------------------------------------------------*
+     * Pass Up Operation
+     *--------------------------------------------------------------*/
+    if (currentProcess->p_supportStruct != NULL) {
+        /* 
+         * Copy the saved exception state (from the BIOS Data Page) into the appropriate 
+         * sup_exceptState field of the current process's support structure.
+         */
+        copyState(savedExceptState, &(currentProcess->p_supportStruct->sup_exceptState[exceptionCode]));
+            
+        /* Update the accumulated CPU time for the current process */
+        STCK(currentTOD);
+        currentProcess->p_time += (currentTOD - startTOD);
 
+        /*
+         * Pass up the exception by performing a LDCXT using the context stored in 
+         * the corresponding sup_exceptContext field (which includes the stack pointer,
+         * status register, and program counter for the exception handler).
+         */
+        LDCXT(currentProcess->p_supportStruct->sup_exceptContext[exceptionCode].c_stackPtr,
+            currentProcess->p_supportStruct->sup_exceptContext[exceptionCode].c_status,
+            currentProcess->p_supportStruct->sup_exceptContext[exceptionCode].c_pc);
+    }
+
+    /*--------------------------------------------------------------*
+     * Die Operation
+     *--------------------------------------------------------------*/
+    else {
+        /* 
+         * The current process has no support structure and cannot handle the exception
+         * Handle the exception as fatal -> terminate the current process and all its progeny
+         */
+        terminateProcess(currentProcess);       /* Call SYS2 handler */
+        currentProcess = NULL;                  /* Set the currentProcess pointer to NULL */
+        scheduler();                            /* Call the scheduler to dispatch the next process */
+    }
 }
+
+
+
 
 
 
