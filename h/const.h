@@ -59,6 +59,7 @@
 #define PRNTINT 		    6                   /* printer interrupt */
 #define TERMINT			    7                   /* terminal interrupt */
 
+#define DEVREDADDBASE       0x10000054          /* device register base address */
 #define DEVINTNUM		    5		            /* interrupt lines used by devices */
 #define DEVPERINT		    8		            /* devices per interrupt line */
 #define DEVREGLEN		    4		            /* device register field length in bytes, and regs per dev */	

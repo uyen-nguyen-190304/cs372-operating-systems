@@ -67,7 +67,7 @@ int findDeviceNumber(int lineNumber) {
 void nonTimerInterrupt() {
     /* Local variables declaration */
     int lineNumber, deviceNumber, index, statusCode;
-    devregarea_t *devRegArea;
+    devregarea_t *deviceReg;
     pcb_PTR unblockedProc;
 
     /* Retrieve the saved processor state at the time of exception */
@@ -91,58 +91,63 @@ void nonTimerInterrupt() {
     deviceNumber = findDeviceNumber(lineNumber);
 
     /* Compute the index in the deviceSemaphores and device register array */
-    index = ((lineNumber - OFFSET) * DEVPERINT) + deviceNumber;
+    index = DEVREDADDBASE + ((lineNumber - OFFSET) * DEVPERINT) + (deviceNumber * DEVREGSIZE);
     
     /* Initialize devRegArea pointer to the base address of device registers */
-    devRegArea = (devregarea_t *) RAMBASEADDR;
+    deviceReg = (devregarea_t *) RAMBASEADDR;
 
-    /* Handle terminal device interrupts (line 7) specially:
-       For a terminal, distinguish between a write (transmission) interrupt and a read (reception) interrupt. */
-       if ((lineNumber == LINE7) && (((devRegArea->devreg[index].t_transm_status) & STATUSON) != READY)) {
-        /* Terminal write interrupt: device is not ready (STATUS != READY) */
-        statusCode = devRegArea->devreg[index].t_transm_status;
-        /* Acknowledge the transmission interrupt */
-        devRegArea->devreg[index].t_transm_command = ACK;
-        /* Unblock the process waiting for a terminal write using an offset in the semaphore array */
-        unblockedProc = removeBlocked(&deviceSemaphores[index + DEVPERINT]);
-        /* Perform the V operation: increment the semaphore */
-        deviceSemaphores[index + DEVPERINT]++;
-    }
-    else {
-        /* Either non-terminal or terminal read interrupt */
-        statusCode = devRegArea->devreg[index].t_recv_status;
-        /* Acknowledge the reception interrupt */
-        devRegArea->devreg[index].t_recv_command = ACK;
-        /* Unblock the process waiting for a terminal read */
+    /* For terminal device, check if it's a write or read*/
+    if (lineNumber == LINE7) {
+        if ((deviceReg->devreg->t_transm_status & STATUSON) != READY) {
+            /* It's a write interrupt */
+            statusCode = deviceReg->devreg->t_transm_status;            /* Save */
+            deviceReg->devreg->t_transm_command = ACK;                  /* Acknowledge */  
+            
+            /* Perform a V operation */
+            unblockedProc = removeBlocked(&deviceSemaphores[index + DEVPERINT]);
+            deviceSemaphores[index + DEVPERINT]++;
+        }
+
+        else {
+            /* It's a read interrupt */
+            statusCode = deviceReg->devreg->t_recv_status;               /* Save */
+            deviceReg->devreg->t_recv_command = ACK;                    /* Acknowledge */
+
+            /* Perform a V operation */
+            unblockedProc = removeBlocked(&deviceSemaphores[index]);
+            deviceSemaphores[index]++;
+        }
+
+    /* For non-terminal device interrupt */
+    } else {
+        statusCode = deviceReg->devreg->d_status;                      /* Save */
+        deviceReg->devreg->d_command = ACK;                            /* Acknowledge */
+
+        /* Perform a V operation */
         unblockedProc = removeBlocked(&deviceSemaphores[index]);
-        /* Increment the semaphore */
         deviceSemaphores[index]++;
     }
 
-
-    /* If a process was unblocked by this interrupt, update its return value and move it to the ready queue */
-    if (unblockedProc != NULL) { 
-        /* Return the device's status in register v0 */
+    /* Place the stored off status code in newly unblocked pcb's v0 register */
+    if (unblockedProc != NULL) {
         unblockedProc->p_s.s_v0 = statusCode;
-
-        /* Insert the unblocked process into the ready queue so it can be dispatched later */
+        
+        /* Insert it on the ready queue */
         insertProcQ(&readyQueue, unblockedProc);
 
-        /* Decrement the soft block count as one process has been unblocked */
+        /* Reduce the soft block count */
         softBlockCount--;
     }
 
-    /* If a process is still currently running, resume its execution */
+    /* Return control to the current process */
     if (currentProcess != NULL) {
         setTIMER(remainingTime);
         LDST(savedExceptionState);
     }
 
-    /* Otherwise, invoke the scheduler to dispatch the next process */
-    scheduler();                /* This should never return */
-
-    /* If the scheduler returns, something went wrong, be PANIC */
-    PANIC();
+    /* If there is no current process, call the scheduler */
+    scheduler();                            /* This should never return */
+    PANIC();    
 }
 
 
