@@ -57,7 +57,7 @@ void scheduler() {
     pcb_PTR nextProcess;  
     
     /* Check if the ready queue is empty */
-    if (emptyProcQ(&readyQueue)) {
+    if (emptyProcQ(readyQueue)) {
         if (processCount == 0) {
             HALT();  /* No processes remain; halt the system */
         } else if (softBlockCount > 0) {

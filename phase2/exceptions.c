@@ -131,7 +131,9 @@ void passeren(int *semAdd) {
         /* Block the process by inserting it into the ASL for the given semaphore */
         insertBlocked(semAdd, currentProcess);
         
-        /* Copy the saved processor state into current process's pcb */
+        /* Copy the saved processor state into current process's pcb */        
+        state_PTR savedExceptionState;
+        savedExceptionState = (state_PTR) BIOSDATAPAGE;
         copyState(savedExceptionState, &(currentProcess->p_s));
 
         /* Update the accumulated CPU time for currentProcess */
@@ -195,6 +197,8 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
         currentProcess->p_time += (currentTOD - startTOD);
 
         /* Copy the saved processor state into current process's pcb */
+        state_PTR savedExceptionState;
+        savedExceptionState = (state_PTR) BIOSDATAPAGE;
         copyState(savedExceptionState, &(currentProcess->p_s));
 
         /* Block the current process on the device semaphore's ASL */
@@ -248,6 +252,8 @@ void waitForClock() {
     (*pclockSem)--;
 
     /* Copy the saved processor state into current process's pcb */
+    state_PTR savedExceptionState;
+    savedExceptionState = (state_PTR) BIOSDATAPAGE;    
     copyState(savedExceptionState, &(currentProcess->p_s));
 
     /* Update the accumulated CPU usage time for the current process */
@@ -298,6 +304,8 @@ void passUpOrDie(int exceptionCode) {
          * Copy the saved exception state (from the BIOS Data Page) into the appropriate 
          * sup_exceptState field of the current process's support structure.
          */
+        state_PTR savedExceptionState;
+        savedExceptionState = (state_PTR) BIOSDATAPAGE;
         copyState(savedExceptionState, &(currentProcess->p_supportStruct->sup_exceptState[exceptionCode]));
             
         /* Update the accumulated CPU time for the current process */
