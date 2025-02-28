@@ -453,7 +453,7 @@ void syscallExceptionHandler() {
         /* SYS4: V operator */    
         case SYS4CALL:
             /* a1: Address of the semaphore to be V'ed */
-            vehrogen((int *) currentProcess->p_s.s_a1);
+            verhogen((int *) currentProcess->p_s.s_a1);
 
         /* SYS5: Wait for IO Device */
         case SYS5CALL:
