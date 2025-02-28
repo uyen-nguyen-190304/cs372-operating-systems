@@ -367,6 +367,7 @@ void syscallExceptionHandler() {
             /* a1: Pointer to the initial state
                a2: Pointer to the support structure */
             createProcess((state_PTR) currentProcess->p_s.s_a1, (support_t *) currentProcess->p_s.s_a2);
+            break;
 
         /* SYS2: Terminate process (and all its progeny )*/
         case SYS2CALL:
@@ -381,31 +382,38 @@ void syscallExceptionHandler() {
 
             /* If the scheduler() returns, something went wrong, be PANIC */
             PANIC();            
+            break;
 
         /* SYS3: P operator */
         case SYS3CALL:
             /* a1: Address of the semaphore to be P'ed */
             passeren((int *) currentProcess->p_s.s_a1);
+            break;
 
         /* SYS4: V operator */    
         case SYS4CALL:
             /* a1: Address of the semaphore to be V'ed */
             verhogen((int *) currentProcess->p_s.s_a1);
+            break;
 
         /* SYS5: Wait for IO Device */
         case SYS5CALL:
             waitForIODevice(currentProcess->p_s.s_a1, currentProcess->p_s.s_a2, currentProcess->p_s.s_a3);
+            break;
 
         /* SYS6: Get CPU time*/
         case SYS6CALL:
             getCPUTime();
+            break;
 
         case SYS7CALL:
             waitForClock();
+            break;
 
         /* SYS8: Get Support Data */
         case SYS8CALL:
             getSupportData();
+            break;
     }
 }
 
