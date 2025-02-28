@@ -18,55 +18,9 @@
 
 /*******************************  GLOBAL VARIABLES  *******************************/
 
-/* Nucleus global variables */
-extern int processCount;
-extern int softBlockCount;
-extern pcb_PTR readyQueue;
-extern pcb_PTR currentProcess;
-
-/* Define time slice constant (5ms expressed in microseconds) */
-#define TIMESLICE 5000
-
 /* Global variables used for CPU time tracking */
-cpu_t startTOD;      /* Time when the current process was dispatched */
-cpu_t currentTOD;    /* Temporary variable for current time (used locally) */
-
-/*******************************  HELPER FUNCTION  *******************************/
-
-/*
-* Function      :   copyState
-* Purpose       :   Copies the processor state from the source to the destination.
-* Parameters    :   source - pointer to the source state.
-*                   dest   - pointer to the destination state.
-*/
-void copyState(state_PTR source, state_PTR dest) {
-    dest->s_entryHI = source->s_entryHI;
-    dest->s_cause   = source->s_cause;    
-    dest->s_status  = source->s_status;
-    dest->s_pc      = source->s_pc;
-    
-    int i;
-    for (i = 0; i < STATEREGNUM; i++) {
-        dest->s_reg[i] = source->s_reg[i];
-    }
-}
-
-/*
-* Function      :   switchContext
-* Purpose       :   Updates the global currentProcess pointer, records the dispatch time,
-*                   and loads the processor state from the given PCB to resume its execution.
-* Parameters    :   curr_proc - pointer to the PCB of the process to be dispatched.
-*/
-void switchContext(pcb_PTR currProc) {
-    /* Update the global pointer to the current process */
-    currentProcess = currProc;
-    
-    /* Record the current Time-of-Day as the dispatch time */
-    STCK(startTOD);
-    
-    /* Load the processor state from the PCB and transfer control */
-    LDST(&(currProc->p_s));
-}
+cpu_t startTOD;         /* Time when the current process was dispatched */
+cpu_t currentTOD;       /* Temporary variable for current time (used locally) */
 
 /******************************* SCHEDULING IMPLEMENTATION *******************************/
 
@@ -82,13 +36,13 @@ void scheduler() {
     pcb_PTR nextProcess;  
     
     /* Check if the ready queue is empty */
-    if (readyQueue == NULL) {
+    if (emptyProcQ(&readyQueue)) {
         if (processCount == 0) {
             HALT();  /* No processes remain; halt the system */
         } else if (softBlockCount > 0) {
             /* Processes exist but are all blocked: enable interrupts and disable the local timer */
             setSTATUS(getSTATUS() | ALLOFF | IMON | IECON);
-            setTIMER(NEVER);                                    /* Prevent PLT from firing */
+            setTIMER(INFINITE);                                 /* Prevent PLT from firing */
             WAIT();                                             /* Wait for an external interrupt */
         } else {
             /* Deadlock: processes exist but none are ready */
@@ -100,11 +54,14 @@ void scheduler() {
     nextProcess = removeProcQ(&readyQueue);
     currentProcess = nextProcess;
 
+    /* Record the time when the process was dispatched */
+    STCK(startTOD);
+
     /* Load the time slice (5ms) into the processor's local timer */
     loadLocalTimer(TIMESLICE);
 
     /* Switch context to dispatch next process */
-    switchContext(nextProcess);
+    LDST(&(nextProcess->p_s));                                  /* Load the processor state of the next process */
 
     /* Should never reach here if LDST works correctly */
     PANIC();
