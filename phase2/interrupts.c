@@ -87,48 +87,38 @@ void nonTimerInterrupt() {
         lineNumber = TERMINT;
     }
 
-    /* Find the device number */
+    /* Determine the specific device number causing the interrupt */
     deviceNumber = findDeviceNumber(lineNumber);
+
+    /* Compute the index in the deviceSemaphores and device register array */
     index = ((lineNumber - OFFSET) * DEVPERINT) + deviceNumber;
     
     /* Initialize devRegArea pointer to the base address of device registers */
     devRegArea = (devregarea_t *) RAMBASEADDR;
 
-    /* Handling Terminal Devices (Line 7) */
-    if (lineNumber == LINE7) {
-        /* For terminal devices, distinguish between a transmission (write) and a reception (read) interrupt */
-        if (devRegArea->devreg[index].t_transm_status & STATUSON) {
-            /* Transmission (Write) Interrupt */
-            statusCode = devRegArea->devreg[index].t_transm_status;
-
-            /* Acknowledge the interrupt by writing ACK to the transmission command register */
-            devRegArea->devreg[index].t_transm_command = ACK;
-
-            /* Remove the blocked process waiting for a write operator */
-            unblockedProc = removeBlocked(&deviceSemaphores[index + DEVPERINT]);
-            deviceSemaphores[index + DEVPERINT]++;
-        } else {
-            /* Reception (Read) Interrupt */
-            statusCode = devRegArea->devreg[index].t_recv_status;
-
-            /* Acknowledge the interrupt by writing ACK to the receive command register */
-            devRegArea->devreg[index].t_recv_command = ACK;
-
-            /* Remove the blocked process waiting for a read operation */
-            unblockedProc = removeBlocked(&deviceSemaphores[index]);
-            deviceSemaphores[index]++;
-        }
-    } else {
-        /* Handling Non-Terminal Device Interrupts */
-        statusCode = devRegArea->devreg[index].d_status;
-        
-        /* Acknowledge the device interrupt */
-        devRegArea->devreg[index].d_command = ACK;
-
-        /* Remove a process blocked on this device's semaphore */
-        unblockedProc = removeBlocked(&deviceSemaphores[index]);
+    /* Handle terminal device interrupts (line 7) specially:
+       For a terminal, distinguish between a write (transmission) interrupt and a read (reception) interrupt. */
+       if ((lineNum == LINE7) && (((temp->devreg[index].t_transm_status) & STATUSON) != READY)) {
+        /* Terminal write interrupt: device is not ready (STATUS != READY) */
+        statusCode = temp->devreg[index].t_transm_status;
+        /* Acknowledge the transmission interrupt */
+        temp->devreg[index].t_transm_command = ACK;
+        /* Unblock the process waiting for a terminal write using an offset in the semaphore array */
+        unblockedPcb = removeBlocked(&deviceSemaphores[index + DEVPERINT]);
+        /* Perform the V operation: increment the semaphore */
+        deviceSemaphores[index + DEVPERINT]++;
+    }
+    else {
+        /* Either non-terminal or terminal read interrupt */
+        statusCode = temp->devreg[index].t_recv_status;
+        /* Acknowledge the reception interrupt */
+        temp->devreg[index].t_recv_command = ACK;
+        /* Unblock the process waiting for a terminal read */
+        unblockedPcb = removeBlocked(&deviceSemaphores[index]);
+        /* Increment the semaphore */
         deviceSemaphores[index]++;
     }
+
 
     /* If a process was unblocked by this interrupt, update its return value and move it to the ready queue */
     if (unblockedProc != NULL) { 
