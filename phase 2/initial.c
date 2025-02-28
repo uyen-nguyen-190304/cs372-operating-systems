@@ -22,11 +22,10 @@ pcb_PTR readyQueue;                     /* Tail pointer for the ready queue */
 pcb_PTR currentProcess;                 /* Pointer to the running process */
 int deviceSemaphores[MAXDEVICES];       /* Semaphores for external devices & pseudo-clock */
 
-/******************************* FUNCTION DECLARATION /*******************************/
+/******************************* EXTERNAL ELEMENTS /*******************************/
 
 extern void test();                     /* Given in the test file */
 extern void uTLB_RefillHandler();       /* TLB-refill handler (stub as for Phase 2) */
-HIDDEN void generalExceptionHandler();  /* General exception handler */
 
 /******************************* FUNCTION IMPLEMENTATION *****************************/
 
@@ -37,12 +36,11 @@ HIDDEN void generalExceptionHandler();  /* General exception handler */
  */
 void generalExceptionHandler() {
     /* Retrieve the saved state from the BIOS Data Page */
-    state_t *savedState;
-    savedState = (state_t *) BIOSDATAPAGE;
+    savedExceptionState = (state_t *) BIOSDATAPAGE;         /* savedExceptionState declared in exceptions.c */
 
     /* Extract the exception code from cause register */
     int exceptionCode;
-    exceptionCode = (savedState->s_cause & GETEXCEPCODE) >> CAUSESHIFT;   
+    exceptionCode = (savedState->s_cause & CAUSEMASK) >> CAUSESHIFT;   
 
     /* Determine the type of exception */
     if (exceptionCode == INTCONST) {
@@ -55,7 +53,7 @@ void generalExceptionHandler() {
         /* Code 8: SYSCALL -> pass to SYSCALL exception handler */
         syscallExceptionHandler();
     } else {
-        /* Code 4-7, 9-12: Program Traps -> pass to program trap */
+        /* Code 4-7, 9-12: Program Traps -> Pass to Program Trap Handler */
         programTrapExceptionHandler();
     }
 }
@@ -71,12 +69,12 @@ int main()
      * Local Variables Initialization
      *--------------------------------------------------------------*/
     int i;                              /* Loop index */
-    unsigned int RAMTOP;                /* Top of RAM */
+    unsigned int ramtop;                /* Top of RAM */
     devregarea_t *devRegArea;           /* Device Register Area */
 
     /* Calculate the RAMTOP */
     devRegArea = (devregarea_t *) RAMBASEADDR;  
-    RAMTOP = devRegArea->rambase + devRegArea->ramsize;
+    ramtop = devRegArea->rambase + devRegArea->ramsize;
     
     /*--------------------------------------------------------------*
      * Populate the Processor 0 Pass Up Vector
@@ -123,7 +121,7 @@ int main()
         PANIC();            /* Be *panic* if it can't even create one process */
     }
     /* Set up the initial processor state */
-    initialProc->p_s.s_sp = RAMTOP;                             /* Set the stack pointer to the top of RAM */
+    initialProc->p_s.s_sp = ramtop;                             /* Set the stack pointer to the top of RAM */
     initialProc->p_s.s_pc = (memaddr) test;                     /* Start execution at test */
     initialProc->p_s.s_t9 = (memaddr) test;                     /* Set t9 to test as well */
     initialProc->p_s.s_status = ALLOFF | IEPON | PLTON | IMON;    /* Enable interrupts and timer */
