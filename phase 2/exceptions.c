@@ -20,37 +20,9 @@
 
 /*******************************  GLOBAL VARIABLES  *******************************/
 
-/* Nucleus global variables */
-extern int processCount;
-extern int softBlockCount;
-extern pcb_PTR readyQueue;
-extern pcb_PTR currentProcess;
-extern int deviceSemaphores[MAXDEVICES];
-
 /* CPU timer global variable */
 extern int startTOD;
 extern int currentTOD;
-
-state_t *savedExceptionState;
-
-/*******************************  FUNCTION DECLARATIONS  *******************************/
-
-/* SYSCALL Exception Handling */
-HIDDEN void createProcess(state_PTR initState, support_t *supportStruct);
-HIDDEN void terminateProcess(pcb_PTR proc);
-HIDDEN void passeren(int *semAdd);
-HIDDEN void verhogen(int *semAdd);
-HIDDEN void waitForIODevice(int lineNum, int devNum);
-HIDDEN void getCPUTime();
-HIDDEN void waitForClock();
-HIDDEN void getSupportData();
-
-/* */
-HIDDEN void PassUpOrDie();
-HIDDEN void TLBExceptionHandler();
-HIDDEN void programTrapExceptionHandler();
-HIDDEN void syscallExceptionHandler();
-HIDDEN void interruptionHandler();
 
 /*******************************  HELPER FUNCTION  *******************************/
 
@@ -380,9 +352,11 @@ void passUpOrDie(int exceptionCode) {
 
 void syscallExceptionHandler() {
     /* Retrieve the processor state at the time of exception */
+    state_PTR savedExceptionState;
     savedExceptionState = (state_PTR) BIOSDATAPAGE;
 
     /* Retrieve the system call number from the saved state */
+    int sysNum; 
     sysNum = savedExceptionState->s_a0;
 
     /* Increment the PC by WORDLEN (4) to avoid infinite SYSCALL loop */
