@@ -26,6 +26,7 @@ int deviceSemaphores[MAXDEVICES];       /* Semaphores for external devices & pse
 
 extern void test();                     /* Given in the test file */
 extern void uTLB_RefillHandler();       /* TLB-refill handler (stub as for Phase 2) */
+HIDDEN void generalExceptionHandler();
 
 /******************************* FUNCTION IMPLEMENTATION *****************************/
 
@@ -117,7 +118,8 @@ int main()
     /*--------------------------------------------------------------*
      * Instantiate the Initial Process and Place it in the Ready Queue
      *--------------------------------------------------------------*/
-    pcb_PTR initialProc = allocPcb();
+    pcb_PTR initialProc;
+    initialProc = allocPcb();
     if (initialProc == NULL) {
         PANIC();            /* Be *panic* if it can't even create one process */
     }
