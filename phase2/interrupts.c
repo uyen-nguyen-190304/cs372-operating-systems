@@ -17,6 +17,9 @@
 #include "../h/interrupts.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
+cpu_t remainingTime;
+
+
 /*******************************  HELPER FUNCTION  *******************************/
 
 int findDeviceNumber(int lineNumber) {
@@ -67,7 +70,7 @@ void nonTimerInterrupt() {
     devregarea_t *devRegArea;
     pcb_PTR unblockedProc;
 
-    /* Retrieve the processor state at the time of exception */
+    /* Retrieve the saved processor state at the time of exception */
     state_PTR savedExceptionState;
     savedExceptionState = (state_PTR) BIOSDATAPAGE;
 
@@ -88,44 +91,67 @@ void nonTimerInterrupt() {
     deviceNumber = findDeviceNumber(lineNumber);
     index = ((lineNumber - OFFSET) * DEVPERINT) + deviceNumber;
     
-    /* Initialize */
+    /* Initialize devRegArea pointer to the base address of device registers */
     devRegArea = (devregarea_t *) RAMBASEADDR;
 
     /* Handling Terminal Devices (Line 7) */
     if (lineNumber == LINE7) {
+        /* For terminal devices, distinguish between a transmission (write) and a reception (read) interrupt */
         if (devRegArea->devreg[index].t_transm_status & STATUSON) {
             /* Transmission (Write) Interrupt */
             statusCode = devRegArea->devreg[index].t_transm_status;
+
+            /* Acknowledge the interrupt by writing ACK to the transmission command register */
             devRegArea->devreg[index].t_transm_command = ACK;
+
+            /* Remove the blocked process waiting for a write operator */
             unblockedProc = removeBlocked(&deviceSemaphores[index + DEVPERINT]);
             deviceSemaphores[index + DEVPERINT]++;
         } else {
             /* Reception (Read) Interrupt */
             statusCode = devRegArea->devreg[index].t_recv_status;
+
+            /* Acknowledge the interrupt by writing ACK to the receive command register */
             devRegArea->devreg[index].t_recv_command = ACK;
+
+            /* Remove the blocked process waiting for a read operation */
             unblockedProc = removeBlocked(&deviceSemaphores[index]);
             deviceSemaphores[index]++;
         }
     } else {
-        /* Non-Terminal Device Interrupt */
+        /* Handling Non-Terminal Device Interrupts */
         statusCode = devRegArea->devreg[index].d_status;
+        
+        /* Acknowledge the device interrupt */
         devRegArea->devreg[index].d_command = ACK;
+
+        /* Remove a process blocked on this device's semaphore */
         unblockedProc = removeBlocked(&deviceSemaphores[index]);
         deviceSemaphores[index]++;
     }
 
-    /* If a process was unblocked, move it to the Ready Queue */
+    /* If a process was unblocked by this interrupt, update its return value and move it to the ready queue */
     if (unblockedProc != NULL) { 
+        /* Return the device's status in register v0 */
         unblockedProc->p_s.s_v0 = statusCode;
+
+        /* Insert the unblocked process into the ready queue so it can be dispatched later */
         insertProcQ(&readyQueue, unblockedProc);
+
+        /* Decrement the soft block count as one process has been unblocked */
         softBlockCount--;
     }
 
+    /* If a process is still currently running, resume its execution */
     if (currentProcess != NULL) {
+        setTIMER(remainingTime);
         LDST(savedExceptionState);
     }
-    scheduler();
 
+    /* Otherwise, invoke the scheduler to dispatch the next process */
+    scheduler();                /* This should never return */
+
+    /* If the scheduler returns, something went wrong, be PANIC */
     PANIC();
 }
 
@@ -134,9 +160,6 @@ void nonTimerInterrupt() {
 void pltInterrupt() {
     /* Check if there is a running process at time of interrupt */
     if (currentProcess != NULL) {
-        /* Local variable used to hold TOD when interruption occurs */
-        cpu_t interruptTOD;
-
         /* Load the PLT with a very large value (INFINITE) */        
         setTIMER(INFINITE);
 
@@ -144,8 +167,8 @@ void pltInterrupt() {
         copyState((state_PTR) BIOSDATAPAGE, &(currentProcess->p_s));
 
         /* Update the accumulated CPU time */
-        STCK(interruptTOD);             
-        currentProcess->p_time += (interruptTOD - startTOD);
+        STCK(currentTOD);             
+        currentProcess->p_time += (currentTOD - startTOD);
 
         /* Place the current process on ready queue */
         insertProcQ(&readyQueue, currentProcess);
@@ -191,11 +214,11 @@ void intervalTimerInterrupt() {
 
     /* Return control to the current process (when there is actually a current process) */
     if (currentProcess != NULL) {
-        LDST((state_PTR) BIOSDATAPAGE);
+        LDST((state_PTR) BIOSDATAPAGE);         /* This should never return */
     }
     
     /* If there is no current process to resume, call scheduler */
-    scheduler();
+    scheduler();                                /* This should never return */
 
     /* If scheduler returns, something went wrong, be *PANIC* */
     PANIC();
@@ -204,6 +227,9 @@ void intervalTimerInterrupt() {
 void interruptHandler() {
     /* Save the Time-Of-Day when an interrupt occurs */
     STCK(currentTOD);
+
+    /* Store the remaining time left on current process's quantum */
+    getTIMER(remainingTime);
 
     /* Retrieve the processor state at the time of exception */
     state_PTR savedExceptionState;
