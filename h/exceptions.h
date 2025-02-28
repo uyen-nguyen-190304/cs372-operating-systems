@@ -9,7 +9,6 @@
 #include "interrupts.h" /* Interrupt handling prototypes */
 #include "initial.h"    /* For initialization and global variables */
 
-extern void generalExceptionHandler();
 extern void programTrapExceptionHandler();
 extern void TLBExceptionHandler();
 extern void syscallExceptionHandler();
