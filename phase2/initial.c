@@ -36,16 +36,17 @@ extern void uTLB_RefillHandler();       /* TLB-refill handler (stub as for Phase
  */
 void generalExceptionHandler() {
     /* Retrieve the saved state from the BIOS Data Page */
+    state_PTR savedExceptionState;
     savedExceptionState = (state_t *) BIOSDATAPAGE;         /* savedExceptionState declared in exceptions.c */
 
     /* Extract the exception code from cause register */
     int exceptionCode;
-    exceptionCode = (savedState->s_cause & CAUSEMASK) >> CAUSESHIFT;   
+    exceptionCode = (savedExceptionState->s_cause & CAUSEMASK) >> CAUSESHIFT;   
 
     /* Determine the type of exception */
     if (exceptionCode == INTCONST) {
         /* Code 0: Interrupts -> pass to interrupt handler */
-        interruptionHandler();
+        interruptHandler();
     } else if (exceptionCode >= TLBMIN && exceptionCode <= TLBMAX) {
         /* Code 1-3: TLB exceptions -> pass to TLB exception handler */
         TLBExceptionHandler();

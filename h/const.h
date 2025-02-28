@@ -24,7 +24,8 @@
 
 
 /* timer */
-#define INFINITE        0xFFFFFFFF
+#define TIMESLICE       5000                /* time slice in milliseconds */
+#define INFINITE        0xFFFFFFFF          /* infinite time */
 
 
 /* timer, timescale, TOD-LO and other bus regs */
@@ -98,7 +99,7 @@
 #define TLBMAX            3         /* Maximum TLB exception code */
 #define SYSCALLCONST      8         /* SYSCALL exception code */
 
-#define CAUSEMASK         0x7C      /* Mask for the exception code (bits 6..2) */
+#define CAUSEMASK         0xFF      /* Mask for the exception code (bits 6..2) */
 #define CAUSESHIFT        2         /* Number of bits to shift right to get exception code */
 
 /* SYSCALL */
