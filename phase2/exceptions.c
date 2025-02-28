@@ -227,6 +227,9 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
         index += DEVPERINT;
     }
 
+    /* Increment the soft block count */
+    softBlockCount++;
+
     /* Decrement the semaphore by 1 (P operation) */
     (deviceSemaphores[index])--;   
 
