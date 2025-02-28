@@ -75,13 +75,13 @@ void createProcess(state_PTR initialState, support_t *supportStruct)
         processCount++;
 
         /* Return success (0) to the calling process in its v0 register */
-        currentProcess->p_s.s_v0 = SUCCESSCONST;
+        currentProcess->p_s.s_v0 = 0;
     }
 
     /* In case there are no more free pcbs */
     else {
         /* Return an error code (-1) in caller's v0 register */
-        currentProcess->p_s.s_v0 = ERRORCONST;
+        currentProcess->p_s.s_v0 = -1;
     }
 
     /* Load the saved processor state to resume execution at the point of the system call */
@@ -271,20 +271,24 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
  * Parameters   :   None
  */
 void getCPUTime() {
+    /* Obtain the saved processor state from the BIOS Data Page */
+    state_PTR savedExceptionState;
+    savedExceptionState = (state_PTR) BIOSDATAPAGE;
+
     /* Read the current Time-Of-Day into currentTOD */
     STCK(currentTOD);
 
-    /* Calculate elapsed time since dispatch and place the total CPU time in v0 */
-    currentProcess->p_s.s_v0 = currentProcess->p_time + (currentTOD - startTOD);
-
-    /* Update the accumulated CPU time for the current process */
+    /* Update the lifetime CPU time in the current process's pcb */
     currentProcess->p_time += (currentTOD - startTOD);
 
-    /* Update startTOD for the next time slice */
+    /* Place that total CPU time into v0 of the saved exception state */
+    savedExceptionState->s_v0 = currentProcess->p_time;
+
+    /* Restart the startTOD for the next time slice */
     STCK(startTOD);
 
     /* Load the processor state at time SYSCALL was executed */
-    LDST((state_PTR) BIOSDATAPAGE);
+    LDST(savedExceptionState);
 }
 
 
@@ -474,6 +478,11 @@ void syscallExceptionHandler() {
         /* SYS8: Get support data */
         case SYS8CALL:
             getSupportData();
+
+        /* In case where the SYSCALL number is not in range [0..8] */
+        default:
+            /* Treat it as a program trap */
+            programTrapExceptionHandler();
     }
 }
 

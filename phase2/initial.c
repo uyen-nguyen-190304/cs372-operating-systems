@@ -52,7 +52,7 @@ HIDDEN void generalExceptionHandler();  /* Declaration of the general exception 
 void generalExceptionHandler() {
     /* Retrieve the saved state from the BIOS Data Page */
     state_PTR savedExceptionState;
-    savedExceptionState = (state_t *) BIOSDATAPAGE;        
+    savedExceptionState = (state_PTR) BIOSDATAPAGE;        
 
     /* Extract the exception code from cause register */
     int exceptionCode;
@@ -152,7 +152,7 @@ int main()
 
     /* Calculate the ramtop */
     devRegArea = (devregarea_t *) RAMBASEADDR; 
-     
+
     /* The top of RAM is calculated by adding the base address of RAM to its size */
     ramtop = devRegArea->rambase + devRegArea->ramsize;
 
