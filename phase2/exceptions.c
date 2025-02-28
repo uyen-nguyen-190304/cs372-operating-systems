@@ -418,7 +418,7 @@ void syscallExceptionHandler() {
     savedExceptionState->s_pc = savedExceptionState->s_pc + WORDLEN;
      
     /* Check if the SYSCALL was requested while in user-mode */
-    if ((savedExceptionState->s_status & USERPON) != ALLOFF) {
+    if (((savedExceptionState->s_status) & USERPON) != ALLOFF) {
         /* Set the Cause */
         savedExceptionState->s_cause = (savedExceptionState->s_cause) & RESERVEDINSTRUCTION;
     
