@@ -229,7 +229,7 @@ void interruptHandler() {
     STCK(currentTOD);
 
     /* Store the remaining time left on current process's quantum */
-    getTIMER(remainingTime);
+    remainingTime = getTIMER();
 
     /* Retrieve the processor state at the time of exception */
     state_PTR savedExceptionState;
