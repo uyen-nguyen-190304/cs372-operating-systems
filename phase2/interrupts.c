@@ -98,7 +98,7 @@ void nonTimerInterrupt() {
 
     /* Handle terminal device interrupts (line 7) specially:
        For a terminal, distinguish between a write (transmission) interrupt and a read (reception) interrupt. */
-       if ((lineNum == LINE7) && (((devRegArea->devreg[index].t_transm_status) & STATUSON) != READY)) {
+       if ((lineNumber == LINE7) && (((devRegArea->devreg[index].t_transm_status) & STATUSON) != READY)) {
         /* Terminal write interrupt: device is not ready (STATUS != READY) */
         statusCode = devRegArea->devreg[index].t_transm_status;
         /* Acknowledge the transmission interrupt */
