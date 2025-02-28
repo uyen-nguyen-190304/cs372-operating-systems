@@ -22,6 +22,26 @@
 cpu_t startTOD;         /* Time when the current process was dispatched */
 cpu_t currentTOD;       /* Temporary variable for current time (used locally) */
 
+/*******************************  HELPER FUNCTION  *******************************/
+
+/*
+* Function      :   copyState
+* Purpose       :   Copies the processor state from the source to the destination.
+* Parameters    :   source - pointer to the source state.
+*                   dest   - pointer to the destination state.
+*/
+void copyState(state_PTR source, state_PTR dest) {
+    dest->s_entryHI = source->s_entryHI;
+    dest->s_cause   = source->s_cause;    
+    dest->s_status  = source->s_status;
+    dest->s_pc      = source->s_pc;
+    
+    int i;
+    for (i = 0; i < STATEREGNUM; i++) {
+        dest->s_reg[i] = source->s_reg[i];
+    }
+}
+
 /******************************* SCHEDULING IMPLEMENTATION *******************************/
 
 /*
@@ -58,7 +78,7 @@ void scheduler() {
     STCK(startTOD);
 
     /* Load the time slice (5ms) into the processor's local timer */
-    loadLocalTimer(TIMESLICE);
+    loadLocalTimer(INITIALPLT);
 
     /* Switch context to dispatch next process */
     LDST(&(nextProcess->p_s));                                  /* Load the processor state of the next process */

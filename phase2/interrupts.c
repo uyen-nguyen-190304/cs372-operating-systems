@@ -7,7 +7,7 @@
  *
  *****************************************************************************/
 
- #include "../h/asl.h"
+#include "../h/asl.h"
 #include "../h/pcb.h"
 #include "../h/types.h"
 #include "../h/const.h"
@@ -188,7 +188,7 @@ void intervalTimerInterrupt() {
 
     /* Return control to the current process (when there is actually a current process) */
     if (currentProcess != NULL) {
-        LDST((state_PTR) BIOSDATAPAGE)
+        LDST((state_PTR) BIOSDATAPAGE);
     }
     
     /* If there is no current process to resume, call scheduler */
@@ -200,8 +200,7 @@ void intervalTimerInterrupt() {
 
 void interruptHandler() {
     /* Save the Time-Of-Day when an interrupt occurs */
-    cpu_t interruptTOD;
-    STCK(interruptTOD);
+    STCK(currentTOD);
 
     /* Retrieve the processor state at the time of exception */
     state_PTR savedExceptionState;
