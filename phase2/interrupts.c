@@ -66,13 +66,17 @@ int findDeviceNumber(int lineNumber) {
 
 void nonTimerInterrupt() {
     /* Local variables declaration */
-    int lineNumber, deviceNumber, index, statusCode;
-    devregarea_t *deviceReg;
+    int lineNumber, deviceNumber, deviceIndex, statusCode;
     pcb_PTR unblockedProc;
+
 
     /* Retrieve the saved processor state at the time of exception */
     state_PTR savedExceptionState;
     savedExceptionState = (state_PTR) BIOSDATAPAGE;
+
+    /* Access the dev register area */
+    devregarea_t *devRegArea;
+    devRegArea = (devregarea_t *) RAMBASEADDR;
 
     /* Determine the highest-priority interrupting line (3-7) */
     if (((savedExceptionState->s_cause) & LINE3INT) != ALLOFF) {
@@ -91,41 +95,38 @@ void nonTimerInterrupt() {
     deviceNumber = findDeviceNumber(lineNumber);
 
     /* Compute the index in the deviceSemaphores and device register array */
-    index = DEVREDADDBASE + ((lineNumber - OFFSET) * DEVPERINT) + (deviceNumber * DEVREGSIZE);
+    deviceIndex = ((lineNumber - OFFSET) * DEVPERINT) + deviceNumber;
     
-    /* Initialize devRegArea pointer to the base address of device registers */
-    deviceReg = (devregarea_t *) RAMBASEADDR;
-
     /* For terminal device, check if it's a write or read*/
     if (lineNumber == LINE7) {
-        if ((deviceReg->devreg->t_transm_status & STATUSON) != READY) {
+        if ((devRegArea->devreg[deviceIndex].t_transm_status & STATUSON) != READY) {
             /* It's a write interrupt */
-            statusCode = deviceReg->devreg->t_transm_status;            /* Save */
-            deviceReg->devreg->t_transm_command = ACK;                  /* Acknowledge */  
+            statusCode = devRegArea->devreg[deviceIndex].t_transm_status;  /* (2) Save */
+            devRegArea->devreg[deviceIndex].t_transm_command = ACK;       /* (3) Ack */
             
             /* Perform a V operation */
-            unblockedProc = removeBlocked(&deviceSemaphores[index + DEVPERINT]);
-            deviceSemaphores[index + DEVPERINT]++;
+            unblockedProc = removeBlocked(&deviceSemaphores[deviceIndex + DEVPERINT]);
+            deviceSemaphores[deviceIndex + DEVPERINT]++;
         }
 
         else {
             /* It's a read interrupt */
-            statusCode = deviceReg->devreg->t_recv_status;               /* Save */
-            deviceReg->devreg->t_recv_command = ACK;                    /* Acknowledge */
+            statusCode = devRegArea->devreg[deviceIndex].t_recv_status;    /* (2) Save */
+            devRegArea->devreg[deviceIndex].t_recv_command = ACK;         /* (3) Ack */
 
             /* Perform a V operation */
-            unblockedProc = removeBlocked(&deviceSemaphores[index]);
-            deviceSemaphores[index]++;
+            unblockedProc = removeBlocked(&deviceSemaphores[deviceIndex]);
+            deviceSemaphores[deviceIndex]++;
         }
 
     /* For non-terminal device interrupt */
     } else {
-        statusCode = deviceReg->devreg->d_status;                      /* Save */
-        deviceReg->devreg->d_command = ACK;                            /* Acknowledge */
+        statusCode = devRegArea->devreg[deviceIndex].d_status;   /* (2) Save */
+        devRegArea->devreg[deviceIndex].d_command = ACK;        /* (3) Ack */
 
         /* Perform a V operation */
-        unblockedProc = removeBlocked(&deviceSemaphores[index]);
-        deviceSemaphores[index]++;
+        unblockedProc = removeBlocked(&deviceSemaphores[deviceIndex]);
+        deviceSemaphores[deviceIndex]++;
     }
 
     /* Place the stored off status code in newly unblocked pcb's v0 register */
