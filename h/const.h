@@ -23,6 +23,7 @@
 #define WORDLEN             4				/* word size in bytes */
 
 #define MAXDEVICES          49              /* maximum number of external devices, plus additional semaphore for pseudo-clock */
+#define PCLOCKIDX           MAXDEVICES - 1  /* index of the pseudo-clock */
 #define MAXPROC             20              /* Max concurrent processes supported */
 
 #define NUCLEUSSTACKTOP     0x20001000      /* top of the nucleus stack */
@@ -39,7 +40,8 @@
 
 /******************************* Timer Constants *****************************/
 
-#define TIMESLICE           5000                /* time slice in milliseconds (5ms) */
+#define INITIALPLT          5000                /* time slice for scheduler in milliseconds (5ms) */
+#define INITIALINTTIMER     100000              /* time slice for system-wide Internal Timer (100ms) */   
 #define INFINITE            0xFFFFFFFF          /* infinite time */
 
 /* timer, timescale, TOD-LO and other bus regs */
