@@ -26,7 +26,6 @@ int deviceSemaphores[MAXDEVICES];       /* Semaphores for external devices & pse
 
 extern void test();                     /* Given in the test file */
 extern void uTLB_RefillHandler();       /* TLB-refill handler (stub as for Phase 2) */
-HIDDEN void generalExceptionHandler();
 
 /******************************* FUNCTION IMPLEMENTATION *****************************/
 
