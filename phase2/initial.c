@@ -1,7 +1,14 @@
 /******************************* INITIAL.c ***************************************
  * 
+ * This module serves as the entry point for Phase 2 of the Pandos operating system.
+ * It initializes the kernel's data structure (PCBs and ASL), sets up global variables
+ * that provide kernel's shared state configures the exception vectors (for handling 
+ * interrupts, TLB exceptions, system calls and program traps), and creates the 
+ * initial process that begins executing the test() function. Once the initial process 
+ * is placed on the ready queue, the scheduler is called to dispatch processes.
  * 
- * 
+ * Written by  : Uyen Nguyen
+ * Last update : 2025/02/28 
  *
  *****************************************************************************/
 
@@ -9,6 +16,7 @@
 #include "../h/pcb.h"
 #include "../h/types.h"
 #include "../h/const.h"
+#include "../h/initial.h"
 #include "../h/scheduler.h"
 #include "../h/exceptions.h"
 #include "../h/interrupts.h"

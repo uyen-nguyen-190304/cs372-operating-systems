@@ -109,7 +109,7 @@
 
 #define RESERVEDINSTRUCTION 0xFFFFFF28          
 
-#define GETEXCEPTIONCODE    0xFF                /* mask for the exception code (bits 6..2) */
+#define GETEXCEPTIONCODE    0x7C                /* mask for the exception code (bits 6..2) */
 #define CAUSESHIFT          2                   /* number of bits to shift right to get exception code */
 
 #define ERRORCONST          -1                  /* indicate an error occurred */
