@@ -7,7 +7,7 @@
  *
  *****************************************************************************/
 
-#include "../h/asl.h"
+ #include "../h/asl.h"
 #include "../h/pcb.h"
 #include "../h/types.h"
 #include "../h/const.h"
@@ -17,13 +17,9 @@
 #include "../h/interrupts.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
-/*******************************  GLOBAL VARIABLES  *******************************/
-
-cpu_t interruptTOD;
-
 /*******************************  HELPER FUNCTION  *******************************/
 
-void findDeviceNumber(int lineNumber) {
+int findDeviceNumber(int lineNumber) {
     devregarea_t *devRegArea;
     unsigned int bitMap;
 
@@ -95,7 +91,7 @@ void nonTimerInterrupt() {
  
     /* Handling Terminal Devices (Line 7) */
     if (lineNumber == LINE7) {
-        if ((devRegArea->devreg[index].t_transm_status & STATUSON) != READY) {
+        if (devRegArea->devreg[index].t_transm_status & STATUSON) {
             /* Transmission (Write) Interrupt */
             statusCode = devRegArea->devreg[index].t_transm_status;
             devRegArea->devreg[index].t_transm_command = ACK;
@@ -118,13 +114,8 @@ void nonTimerInterrupt() {
 
     /* If a process was unblocked, move it to the Ready Queue */
     if (unblockedProc != NULL) { 
-        /* Store device status */
         unblockedProc->p_s.s_v0 = statusCode;
-
-        /* Insert the unblocked proc into the ready queue */
         insertProcQ(&readyQueue, unblockedProc);
-
-        /* Decrease the soft block count */
         softBlockCount--;
     }
 
@@ -133,8 +124,7 @@ void nonTimerInterrupt() {
     }
     scheduler();
 
-
-
+    PANIC();
 }
 
 
@@ -142,15 +132,18 @@ void nonTimerInterrupt() {
 void pltInterrupt() {
     /* Check if there is a running process at time of interrupt */
     if (currentProcess != NULL) {
+        /* Local variable used to hold TOD when interruption occurs */
+        cpu_t interruptTOD;
+
         /* Load the PLT with a very large value (INFINITE) */        
         STCK(INFINITE);
 
-        /* Copy the processor state of BIOS Data Page into current process pcb's */
+        /* Copy the processor state at time of exception into current process pcb's */
         copyState((state_PTR) BIOSDATAPAGE, &(currentProcess->p_s));
 
         /* Update the accumulated CPU time */
-        STCK(currentTOD);
-        currentProcess->p_time += (currentTOD - startTOD);
+        STCK(interruptTOD);             
+        currentProcess->p_time += (interruptTOD - startTOD);
 
         /* Place the current process on ready queue */
         insertProcQ(&readyQueue, currentProcess);
@@ -159,8 +152,12 @@ void pltInterrupt() {
         currentProcess = NULL;
 
         /* Call the scheduler to dispatch the next process */
-        scheduler();
+        scheduler();                        /* This should never return */
+
+        /* If scheduler returns, something went wrong, be PANIC */
+        PANIC();
     }
+    /* If the currentProcess is NULL but there is an pltInterrupt, be PANIC */
     PANIC();
 }
 
@@ -173,8 +170,8 @@ void intervalTimerInterrupt() {
     /* Acknowledge the interrupt by reloading the Interval Timer with 100 milliseconds */
     LDIT(INTERVALTIME);
 
-    /* Unblock all processes waiting on the pseudo-clock semaphore.
-     * Remove each process from the ASL for the pseudo-clock semaphore and insert it into the Ready Queue. */
+    /* Unblock all processes waiting on the pseudo-clock semaphore:
+       Remove each process from the ASL for the pseudo-clock semaphore and insert it into the Ready Queue. */
     while (headBlocked(&deviceSemaphores[PCLOCKIDX]) != NULL) {
         /* Unlock the first pcb from the pseudo-clock semaphore's process*/
         unblockedProc = removeBlocked(&deviceSemaphores[PCLOCKIDX]);
@@ -204,16 +201,12 @@ void intervalTimerInterrupt() {
 
 void interruptHandler() {
     /* Save the Time-Of-Day when an interrupt occurs */
+    cpu_t interruptTOD;
     STCK(interruptTOD);
-
-    /* Calculate the remaining time for the current process */
-    remainingTime = interruptTOD - startTOD;
-
 
     /* Retrieve the processor state at the time of exception */
     state_PTR savedExceptionState;
     savedExceptionState = (state_PTR) BIOSDATAPAGE;
-
 
     /* Given that Pandos is intended for uniprocessor environment, 
        interrupt line 0 (inter-processor interrupts) can be ignored */
@@ -224,12 +217,14 @@ void interruptHandler() {
     }
 
     /* Check if the interrupt is from the Interval Timer (interrupt line 2) */
-    if (((savedExceptionState->s_cause) & LINE2INT) != ALLOFF) {
+    else if (((savedExceptionState->s_cause) & LINE2INT) != ALLOFF) {
         intervalTimerInterrupt();
     }
 
     /* Otherwise, interrupts are from peripheral devices (interrupt line 3-7) */
-    nonTimerInterrupt();
+    else {
+        nonTimerInterrupt();
+    }
 }
 
 /******************************* END OF INTERRUPTS.c *******************************/
