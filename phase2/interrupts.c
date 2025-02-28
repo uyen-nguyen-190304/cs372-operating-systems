@@ -98,11 +98,11 @@ void nonTimerInterrupt() {
 
     /* Handle terminal device interrupts (line 7) specially:
        For a terminal, distinguish between a write (transmission) interrupt and a read (reception) interrupt. */
-       if ((lineNum == LINE7) && (((temp->devreg[index].t_transm_status) & STATUSON) != READY)) {
+       if ((lineNum == LINE7) && (((devRegArea->devreg[index].t_transm_status) & STATUSON) != READY)) {
         /* Terminal write interrupt: device is not ready (STATUS != READY) */
-        statusCode = temp->devreg[index].t_transm_status;
+        statusCode = devRegArea->devreg[index].t_transm_status;
         /* Acknowledge the transmission interrupt */
-        temp->devreg[index].t_transm_command = ACK;
+        devRegArea->devreg[index].t_transm_command = ACK;
         /* Unblock the process waiting for a terminal write using an offset in the semaphore array */
         unblockedPcb = removeBlocked(&deviceSemaphores[index + DEVPERINT]);
         /* Perform the V operation: increment the semaphore */
@@ -110,9 +110,9 @@ void nonTimerInterrupt() {
     }
     else {
         /* Either non-terminal or terminal read interrupt */
-        statusCode = temp->devreg[index].t_recv_status;
+        statusCode = devRegArea->devreg[index].t_recv_status;
         /* Acknowledge the reception interrupt */
-        temp->devreg[index].t_recv_command = ACK;
+        devRegArea->devreg[index].t_recv_command = ACK;
         /* Unblock the process waiting for a terminal read */
         unblockedPcb = removeBlocked(&deviceSemaphores[index]);
         /* Increment the semaphore */
