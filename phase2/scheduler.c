@@ -61,7 +61,8 @@ void copyState(state_PTR source, state_PTR dest) {
  *                   - If the ready queue is empty:
  *                      a) If no processes remain (processCount = 0), it halts the system
  *                      b) If processes exists but are all blocked (softBlockCount > 0), it disable the 
- *                         local timer and enable interrupts to wait for an external interruption
+ *                         local timer by loading a very large value and enable interrupts to wait 
+ *                         for an external interruption to unblock a process
  *                      c) If processes exist but none are ready (indicating deadlock), it panics
  * Parameters    :   None
 */
