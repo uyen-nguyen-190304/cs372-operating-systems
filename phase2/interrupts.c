@@ -87,7 +87,10 @@ void nonTimerInterrupt() {
     /* Find the device number */
     deviceNumber = findDeviceNumber(lineNumber);
     index = ((lineNumber - OFFSET) * DEVPERINT) + deviceNumber;
- 
+    
+    /* Initialize */
+    devRegArea = (devregarea_t *) RAMBASEADDR;
+
     /* Handling Terminal Devices (Line 7) */
     if (lineNumber == LINE7) {
         if (devRegArea->devreg[index].t_transm_status & STATUSON) {

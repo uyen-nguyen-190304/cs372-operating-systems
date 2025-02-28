@@ -22,7 +22,7 @@ pcb_PTR readyQueue;                     /* Tail pointer for the ready queue */
 pcb_PTR currentProcess;                 /* Pointer to the running process */
 int deviceSemaphores[MAXDEVICES];       /* Semaphores for external devices & pseudo-clock */
 
-/******************************* EXTERNAL ELEMENTS /*******************************/
+/******************************* EXTERNAL ELEMENTS *******************************/
 
 extern void test();                     /* Given in the test file */
 extern void uTLB_RefillHandler();       /* TLB-refill handler (stub as for Phase 2) */
