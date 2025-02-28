@@ -1,6 +1,6 @@
-#ifndef SCHEDULER_H
-#define SCHEDULER_H
+#ifndef SCHEDULER
+#define SCHEDULER
 
-void scheduler();
+extern void scheduler();
 
-#endif /* SCHEDULER_H */
+#endif /* SCHEDULER */
