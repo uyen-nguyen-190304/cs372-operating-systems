@@ -24,7 +24,7 @@
 
 
 /* timer */
-#define NEVER           0xFFFFFFFF
+#define INFINITE        0xFFFFFFFF
 
 
 /* timer, timescale, TOD-LO and other bus regs */
@@ -97,9 +97,19 @@
 #define TLBMIN            1         /* Minimum TLB exception code */
 #define TLBMAX            3         /* Maximum TLB exception code */
 #define SYSCALLCONST      8         /* SYSCALL exception code */
-#define GETEXCEPCODE      0x7C      /* Mask for the exception code (bits 6..2) */
+
+#define CAUSEMASK         0x7C      /* Mask for the exception code (bits 6..2) */
 #define CAUSESHIFT        2         /* Number of bits to shift right to get exception code */
 
+/* SYSCALL */
+#define SYS1CALL          1
+#define SYS2CALL          2
+#define SYS3CALL          3
+#define SYS4CALL          4
+#define SYS5CALL          5
+#define SYS6CALL          6
+#define SYS7CALL          7
+#define SYS8CALL          8
 
 /* Exceptions related constants */
 #define	PGFAULTEXCEPT	  0
