@@ -34,25 +34,31 @@ int deviceSemaphores[MAXDEVICES];       /* Semaphores for external devices & pse
 
 extern void test();                     /* Given in the test file */
 extern void uTLB_RefillHandler();       /* TLB-refill handler (stub as for Phase 2) */
-HIDDEN void generalExceptionHandler();
+HIDDEN void generalExceptionHandler();  /* Declaration of the general exception handler */
 
 /******************************* FUNCTION IMPLEMENTATION *****************************/
 
-/*
- *
- *
- * 
+/* 
+ * Function     :   generalExceptionHandler
+ * Purpose      :   This handler is invoked when an exception occurs. It retrieves the 
+ *                  saved processor state from the BIOS data page, extracts the exception
+ *                  code, and dispatches control to the appropriate handler:
+ *                  - For interrupts (exception code 0), it calls interruptHandler()
+ *                  - For TLB exceptions (exception code 1-3), it calls TLBExceptionHandler()
+ *                  - For system calls (exception code 8), it calls syscallExceptionHandler()
+ *                  - For all other exceptions, it calls programTrapExceptionHandler()
+ * Parameters   :   None
  */
 void generalExceptionHandler() {
     /* Retrieve the saved state from the BIOS Data Page */
     state_PTR savedExceptionState;
-    savedExceptionState = (state_t *) BIOSDATAPAGE;         /* savedExceptionState declared in exceptions.c */
+    savedExceptionState = (state_t *) BIOSDATAPAGE;        
 
     /* Extract the exception code from cause register */
     int exceptionCode;
     exceptionCode = (savedExceptionState->s_cause & GETEXCEPTIONCODE) >> CAUSESHIFT;   
 
-    /* Determine the type of exception */
+    /* Dispatch to the correct handler based on the exception code */
     if (exceptionCode == INTCONST) {
         /* Code 0: Interrupts -> pass to interrupt handler */
         interruptHandler();
@@ -69,9 +75,23 @@ void generalExceptionHandler() {
 }
 
 /*
- *
- *
- * 
+ * Function     :   main
+ * Purpose      :   The kernel's entry point. This function perform the following steps:
+ *                  1. Populate the Processor 0 Pass Up Vector with the address of the 
+ *                     TLB-refill handler and the general exception handler, and their
+ *                     corresponding stack pointers (set to NUCLEUSSTACKTOP)
+ *                  2. Initialize Phase 1 data structures: the free list of PCBs and the ASL
+ *                  3. Initialize nucleus global variables: processCount (0), softBlockCount (0),
+ *                     readyQueue (NULL), currentProcess (NULL), and deviceSemaphores
+ *                  4. Load the system-wide interval timer with a 100-milisecond interval
+ *                  5. Create the initial process, set up its processor state (stack pointer, PC, status),
+ *                     and insert it into the ready queue
+ *                  6. Increment the processCount to reflect the new process
+ *                  7. Call the scheduler to dispatch processes
+ *                  8. If the scheduler return (which should not), PANIC is called
+ * Parameters   :   None
+ * Return       :   Never returns normally
+ *                  Return -1 if the execution reaches the final return statement, signifying something went wrong
  */
 int main() 
 {
@@ -79,39 +99,41 @@ int main()
      * Local Variables Initialization
      *--------------------------------------------------------------*/
     int i;                              /* Loop index */
-    memaddr ramtop;                /* Top of RAM */
-    devregarea_t *devRegArea;           /* Device Register Area */
+    memaddr ramtop;                     /* Top of RAM */
+    devregarea_t *devRegArea;           /* Pointer to device register area */
 
-    /* Calculate the RAMTOP */
+    /* Calculate the ramtop */
     devRegArea = (devregarea_t *) RAMBASEADDR;  
+    /* The top of RAM is calculated by adding the base address of RAM to its size */
     ramtop = devRegArea->rambase + devRegArea->ramsize;
     
     /*--------------------------------------------------------------*
      * Populate the Processor 0 Pass Up Vector
      *--------------------------------------------------------------*/
     passupvector_t *pv = (passupvector_t *) PASSUPVECTOR;
-    pv->tlb_refill_handler  = (memaddr) uTLB_RefillHandler;
-    pv->tlb_refill_stackPtr = NUCLEUSSTACKTOP;                      /* Top of nucleus stack page */
-    pv->exception_handler   = (memaddr) generalExceptionHandler;
-    pv->exception_stackPtr  = NUCLEUSSTACKTOP;                      /* Top of nucleus stack page */
+    pv->tlb_refill_handler  = (memaddr) uTLB_RefillHandler;         /* Set the TLB-refill handler's address */
+    pv->tlb_refill_stackPtr = NUCLEUSSTACKTOP;                      /* Set its stack pointer to the top of the nucleus stack */
+    pv->exception_handler   = (memaddr) generalExceptionHandler;    /* Set the general exception handler */
+    pv->exception_stackPtr  = NUCLEUSSTACKTOP;                      /* Set its stack pointer to the top of the nucleus stack */
 
 
     /*--------------------------------------------------------------*
      * Initialize Phase 1 Data Structures (pcb and ASL)
      *--------------------------------------------------------------*/
-    initPcbs();
-    initASL();
+    initPcbs();             /* Initialize the free list of PCBs */
+    initASL();              /* Initialize the Active Semaphore List and its dummy node */
 
 
     /*--------------------------------------------------------------*
      * Initialize Nucleus Globals
      *--------------------------------------------------------------*/
-    processCount   = 0;
-    softBlockCount = 0;
-    readyQueue     = mkEmptyProcQ();
-    currentProcess = NULL;
+    processCount   = 0;                     /* Set the process count to zero */
+    softBlockCount = 0;                     /* Set the count of blocked processes to zero */
+    readyQueue     = mkEmptyProcQ();        /* Initialize the ready queue as empty */
+    currentProcess = NULL;                  /* No process is currently running */
 
-    /* Initialize the device semaphores to 0 (synchronization, not mutual exclusion) */
+    /* Initialize the device semaphores to 0. These semaphores are used for 
+       synchronization with external devices and the pseudo-clock */
     for (i = 0; i < MAXDEVICES; i++) {
         deviceSemaphores[i] = 0;
     }
@@ -120,17 +142,19 @@ int main()
     /*--------------------------------------------------------------*
      * Load Interval Timer for Pseudo-Clock (100 milliseconds)
      *--------------------------------------------------------------*/
-    LDIT(INITIALINTTIMER);           /* 100,000 microseconds = 100 ms */
+    /* Load the interval timer with INITIALINTTIMER (100,000 microseconds = 100ms) */
+    LDIT(INITIALINTTIMER);           
 
 
     /*--------------------------------------------------------------*
      * Instantiate the Initial Process and Place it in the Ready Queue
      *--------------------------------------------------------------*/
     pcb_PTR initialProc;
-    initialProc = allocPcb();
+    initialProc = allocPcb();           /* Allocate a new PCB from the free list */
     if (initialProc == NULL) {
-        PANIC();            /* Be *panic* if it can't even create one process */
+        PANIC();                        /* Be *panic* if it can't even create one process */
     }
+
     /* Set up the initial processor state */
     initialProc->p_s.s_sp = ramtop;                                 /* Set the stack pointer to the top of RAM */
     initialProc->p_s.s_pc = (memaddr) test;                         /* Start execution at test */
@@ -152,7 +176,7 @@ int main()
     /* Set the Support Structure pointer to NULL */
     initialProc->p_supportStruct = NULL;
 
-    /* Place the initial proc in the ready queue and increment the process count*/
+    /* Insert the initial process into the ready queue and increment the process count */
     insertProcQ(&readyQueue, initialProc);          
     processCount++;                                 
 
@@ -160,11 +184,12 @@ int main()
     /*--------------------------------------------------------------*
      * Call the Scheduler
      *--------------------------------------------------------------*/
-    scheduler();            /* Send control over to the scheduler */
+    /* Send control over to scheduler to dispatch the next process */
+    scheduler();            
 
 
     /* If the scheduler returns, something went wrong */
-    PANIC();                /* Should never reach here if implement correctly */
+    PANIC();                 /* Should never reach here */
 
     return -1;               /* Just to placate the compiler, also never reached */
 }
