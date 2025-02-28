@@ -82,7 +82,7 @@ void scheduler() {
     setTIMER(INITIALPLT);
 
     /* Switch context to dispatch next process */
-    LDST(&(nextProcess->p_s));                                  /* Load the processor state of the next process */
+    LDST(&(currentProcess->p_s));                                  /* Load the processor state of the next process */
 
     /* Should never reach here if LDST works correctly */
     PANIC();

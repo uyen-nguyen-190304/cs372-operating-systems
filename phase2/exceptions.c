@@ -162,7 +162,8 @@ void verhogen(int *semAdd) {
     /* If the new value is less than or equal to 0, then one or more processes are waiting */
     if (*semAdd <= 0) {
         /* Remove the first blocked process from the semaphore's queue */
-        pcb_PTR unblockedProc = removeBlocked(semAdd);      
+        pcb_PTR unblockedProc;
+        unblockedProc = removeBlocked(semAdd);      
 
         /* Insert the unblocked process into the ready queue */
         insertProcQ(&readyQueue, unblockedProc);
