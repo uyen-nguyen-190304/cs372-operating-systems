@@ -104,7 +104,7 @@ void nonTimerInterrupt() {
         /* Acknowledge the transmission interrupt */
         devRegArea->devreg[index].t_transm_command = ACK;
         /* Unblock the process waiting for a terminal write using an offset in the semaphore array */
-        unblockedPcb = removeBlocked(&deviceSemaphores[index + DEVPERINT]);
+        unblockedProc = removeBlocked(&deviceSemaphores[index + DEVPERINT]);
         /* Perform the V operation: increment the semaphore */
         deviceSemaphores[index + DEVPERINT]++;
     }
@@ -114,7 +114,7 @@ void nonTimerInterrupt() {
         /* Acknowledge the reception interrupt */
         devRegArea->devreg[index].t_recv_command = ACK;
         /* Unblock the process waiting for a terminal read */
-        unblockedPcb = removeBlocked(&deviceSemaphores[index]);
+        unblockedProc = removeBlocked(&deviceSemaphores[index]);
         /* Increment the semaphore */
         deviceSemaphores[index]++;
     }
