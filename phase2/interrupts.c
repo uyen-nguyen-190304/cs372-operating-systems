@@ -63,7 +63,6 @@ int findDeviceNumber(int lineNumber) {
 
 void nonTimerInterrupt() {
     /* Local variables declaration */
-    cpu_t currentTOD;
     int lineNumber, deviceNumber, index, statusCode;
     devregarea_t *devRegArea;
     pcb_PTR unblockedProc;
