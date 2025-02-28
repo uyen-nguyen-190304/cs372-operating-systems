@@ -12,6 +12,7 @@
 #include "../h/pcb.h"
 #include "../h/types.h"
 #include "../h/const.h"
+#include "../h/initial.h"
 #include "../h/scheduler.h"
 #include "../h/interrupts.h"
 #include "/usr/include/umps3/umps/libumps.h"
@@ -61,7 +62,7 @@ void scheduler() {
             HALT();  /* No processes remain; halt the system */
         } else if (softBlockCount > 0) {
             /* Processes exist but are all blocked: enable interrupts and disable the local timer */
-            setSTATUS(getSTATUS() | ALLOFF | IMON | IECON);
+            setSTATUS(ALLOFF | IMON | IECON);
             setTIMER(INFINITE);                                 /* Prevent PLT from firing */
             WAIT();                                             /* Wait for an external interrupt */
         } else {
@@ -78,7 +79,7 @@ void scheduler() {
     STCK(startTOD);
 
     /* Load the time slice (5ms) into the processor's local timer */
-    loadLocalTimer(INITIALPLT);
+    setTIMER(INITIALPLT);
 
     /* Switch context to dispatch next process */
     LDST(&(nextProcess->p_s));                                  /* Load the processor state of the next process */

@@ -24,26 +24,6 @@
 extern int startTOD;
 extern int currentTOD;
 
-/*******************************  HELPER FUNCTION  *******************************/
-
-/*
-* Function      :   copyState
-* Purpose       :   Copies the processor state from the source to the destination.
-* Parameters    :   source - pointer to the source state.
-*                   dest   - pointer to the destination state.
-*/
-void copyState(state_PTR source, state_PTR dest) {
-    dest->s_entryHI = source->s_entryHI;
-    dest->s_cause   = source->s_cause;    
-    dest->s_status  = source->s_status;
-    dest->s_pc      = source->s_pc;
-    
-    int i;
-    for (i = 0; i < STATEREGNUM; i++) {
-        dest->s_reg[i] = source->s_reg[i];
-    }
-}
-
 /*******************************  FUNCTION IMPLEMENTATION  *******************************/ 
 /*
  ! SYS1  
