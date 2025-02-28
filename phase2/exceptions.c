@@ -301,8 +301,6 @@ void waitForClock() {
     /* Decrement the pseudo-clock semaphore */
     (*pclockSem)--;
 
-    copyState(savedExceptionState, &(currentProcess->p_s));
-
     /* Update the accumulated CPU usage time for the current process */
     STCK(currentTOD);
     currentProcess->p_time += (currentTOD - startTOD);
@@ -455,7 +453,7 @@ void syscallExceptionHandler() {
         /* SYS4: V operator */    
         case SYS4CALL:
             /* a1: Address of the semaphore to be V'ed */
-            verhogen((int *) currentProcess->p_s.s_a1);
+            vehrogen((int *) currentProcess->p_s.s_a1);
 
         /* SYS5: Wait for IO Device */
         case SYS5CALL:
