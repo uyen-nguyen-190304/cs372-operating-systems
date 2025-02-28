@@ -26,6 +26,7 @@ int deviceSemaphores[MAXDEVICES];       /* Semaphores for external devices & pse
 
 extern void test();                     /* Given in the test file */
 extern void uTLB_RefillHandler();       /* TLB-refill handler (stub as for Phase 2) */
+HIDDEN void generalExceptionHandler();
 
 /******************************* FUNCTION IMPLEMENTATION *****************************/
 
@@ -70,7 +71,7 @@ int main()
      * Local Variables Initialization
      *--------------------------------------------------------------*/
     int i;                              /* Loop index */
-    unsigned int ramtop;                /* Top of RAM */
+    memaddr ramtop;                /* Top of RAM */
     devregarea_t *devRegArea;           /* Device Register Area */
 
     /* Calculate the RAMTOP */
@@ -111,7 +112,7 @@ int main()
     /*--------------------------------------------------------------*
      * Load Interval Timer for Pseudo-Clock (100 milliseconds)
      *--------------------------------------------------------------*/
-    LDIT(100000);           /* 100,000 microseconds = 100 ms */
+    LDIT(INITIALINTTIMER);           /* 100,000 microseconds = 100 ms */
 
 
     /*--------------------------------------------------------------*
@@ -122,10 +123,10 @@ int main()
         PANIC();            /* Be *panic* if it can't even create one process */
     }
     /* Set up the initial processor state */
-    initialProc->p_s.s_sp = ramtop;                             /* Set the stack pointer to the top of RAM */
-    initialProc->p_s.s_pc = (memaddr) test;                     /* Start execution at test */
-    initialProc->p_s.s_t9 = (memaddr) test;                     /* Set t9 to test as well */
-    initialProc->p_s.s_status = ALLOFF | IEPON | PLTON | IMON;    /* Enable interrupts and timer */
+    initialProc->p_s.s_sp = ramtop;                                 /* Set the stack pointer to the top of RAM */
+    initialProc->p_s.s_pc = (memaddr) test;                         /* Start execution at test */
+    initialProc->p_s.s_t9 = (memaddr) test;                         /* Set t9 to test as well */
+    initialProc->p_s.s_status = ALLOFF | IEPON | PLTON | IMON;      /* Enable interrupts and timer */
     
     /* Set all the Process Tree fields to NULL */
     initialProc->p_prnt       = NULL;
