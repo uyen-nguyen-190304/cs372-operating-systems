@@ -41,7 +41,7 @@ void generalExceptionHandler() {
 
     /* Extract the exception code from cause register */
     int exceptionCode;
-    exceptionCode = (savedExceptionState->s_cause & CAUSEMASK) >> CAUSESHIFT;   
+    exceptionCode = (savedExceptionState->s_cause & GETEXCEPTIONCODE) >> CAUSESHIFT;   
 
     /* Determine the type of exception */
     if (exceptionCode == INTCONST) {
