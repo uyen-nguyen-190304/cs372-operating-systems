@@ -135,7 +135,7 @@ void pltInterrupt() {
         cpu_t interruptTOD;
 
         /* Load the PLT with a very large value (INFINITE) */        
-        STCK(INFINITE);
+        setTIMER(INFINITE);
 
         /* Copy the processor state at time of exception into current process pcb's */
         copyState((state_PTR) BIOSDATAPAGE, &(currentProcess->p_s));
@@ -167,7 +167,7 @@ void intervalTimerInterrupt() {
     pcb_PTR unblockedProc;
 
     /* Acknowledge the interrupt by reloading the Interval Timer with 100 milliseconds */
-    LDIT(INTERVALTIME);
+    LDIT(INITIALINTTIMER);
 
     /* Unblock all processes waiting on the pseudo-clock semaphore:
        Remove each process from the ASL for the pseudo-clock semaphore and insert it into the Ready Queue. */
