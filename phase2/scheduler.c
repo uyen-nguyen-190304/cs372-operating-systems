@@ -1,11 +1,19 @@
 /******************************* SCHEDULER.c ***************************************
  *
- * This module implements the Scheduler and deadlock detection for the nucleus.
- * It guarantees that every ready process gets a chance to execute using a
- * preemptive round-robin scheduling algorithm with a 5ms time slice. If the ready
- * queue is empty, it either halts the system (if no processes remain), waits for an
- * external interrupt (if processes are blocked), or panics in the event of deadlock.
- *
+ * This module implements a preemptive round-robin scheduler with a 5ms time slice.
+ * Its primary responsibilities are:
+ *  - Dispatch processes from the ready queue so that each ready process gets a chance
+ *    to execute
+ *  - Track CPU time for processes using the global variables startTOD and currentTOD
+ *  - Handle idle conditions:
+ *      a) If no processes remain (processCount == 0), the system halts
+ *      b) If processes exist but all are blockedd (softBlockedCount > 0), the scheduler
+ *         waits for an external interrupt
+ *      c) If processes exist but none are ready (deadlock), the system panic
+ * 
+ * Written by  : Uyen Nguyen
+ * Last update : 2025/02/28 
+ *  
  ***********************************************************************************/
 
 #include "../h/asl.h"
@@ -21,16 +29,17 @@
 
 /* Global variables used for CPU time tracking */
 cpu_t startTOD;         /* Time when the current process was dispatched */
-cpu_t currentTOD;       /* Temporary variable for current time (used locally) */
+cpu_t currentTOD;       /* Temporary variable  to store the current TOD for CPU time accounting */
 
 /*******************************  HELPER FUNCTION  *******************************/
 
 /*
-* Function      :   copyState
-* Purpose       :   Copies the processor state from the source to the destination.
-* Parameters    :   source - pointer to the source state.
-*                   dest   - pointer to the destination state.
-*/
+ * Function      :   copyState
+ * Purpose       :   Copies the processor state from the source to the destination
+ *                   This function is used to save or restore the processor state during context switches
+ * Parameters    :   source - pointer to the source state from which to copy
+ *                   dest   - pointer to the destination state where the state will be copied
+ */
 void copyState(state_PTR source, state_PTR dest) {
     dest->s_entryHI = source->s_entryHI;
     dest->s_cause   = source->s_cause;    
@@ -46,45 +55,56 @@ void copyState(state_PTR source, state_PTR dest) {
 /******************************* SCHEDULING IMPLEMENTATION *******************************/
 
 /*
-* Function      :   scheduler
-* Purpose       :   Implements a round-robin scheduler with a 5ms time slice.
-*                   If the ready queue is non-empty, it dispatches the next process.
-*                   If empty, it handles idle conditions: halting, waiting, or panicking on deadlock.
-* Parameters    :   None
+ * Function      :   scheduler
+ * Purpose       :   Implements a round-robin scheduler with a 5ms time slice.
+ *                   - If the ready queue is not empty, it dispatches the next process in round-robin fashion
+ *                   - If the ready queue is empty:
+ *                      a) If no processes remain (processCount = 0), it halts the system
+ *                      b) If processes exists but are all blocked (softBlockCount > 0), it disable the 
+ *                         local timer and enable interrupts to wait for an external interruption
+ *                      c) If processes exist but none are ready (indicating deadlock), it panics
+ * Parameters    :   None
 */
 void scheduler() {
-    /* Declare pointer for the next process to dispatch */
+    /* Pointer to hold the next process to be dispatched dispatch */
     pcb_PTR nextProcess;  
     
     /* Check if the ready queue is empty */
     if (emptyProcQ(readyQueue)) {
         if (processCount == 0) {
-            HALT();  /* No processes remain; halt the system */
-        } else if (softBlockCount > 0) {
-            /* Processes exist but are all blocked: enable interrupts and disable the local timer */
-            setSTATUS(ALLOFF | IMON | IECON);
+            /* No processes remain; halt the system */
+            HALT();  
+        } 
+        
+         /* Processes exist but are all blocked */
+        else if (softBlockCount > 0) {
+            /* Disable the local timer, enable interrupts, and wait for an external interrupt to unblock a process */
+            setSTATUS(ALLOFF | IMON | IECON);                   /* Enable interrupts */
             setTIMER(INFINITE);                                 /* Prevent PLT from firing */
             WAIT();                                             /* Wait for an external interrupt */
-        } else {
-            /* Deadlock: processes exist but none are ready */
+        } 
+        
+        /* Deadlock: processes exist but none are ready */
+        else {
+            /* System panics */
             PANIC();
         }
     }
 
-    /* Ready queue is not empty: remove the head process and dispatch it */
+    /* Ready queue is not empty: remove the next process for execution */
     nextProcess = removeProcQ(&readyQueue);
     currentProcess = nextProcess;
 
-    /* Record the time when the process was dispatched */
+    /* Record the dispatch time for CPU time accounting */
     STCK(startTOD);
 
-    /* Load the time slice (5ms) into the processor's local timer */
+    /* Set the processor local timer to initial time slice (5ms) */
     setTIMER(INITIALPLT);
 
-    /* Switch context to dispatch next process */
-    LDST(&(currentProcess->p_s));                                  /* Load the processor state of the next process */
+    /* Loacd the state of the next process, transferring control to it */
+    LDST(&(currentProcess->p_s));                                  /* This should never return if context switching is successful */
 
-    /* Should never reach here if LDST works correctly */
+    /* If control reaches here, something went wrong with LDST */
     PANIC();
 }
 
