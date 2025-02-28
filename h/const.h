@@ -120,8 +120,39 @@
 #define LINE6INT            0x00004000          /* interrupt line 6 */
 #define LINE7INT            0x00008000          /* interrupt line 7 */
 
+/* Interrupt line number */
+#define	LINE1			    1				
+#define	LINE2			    2			
+#define	LINE3			    3			
+#define	LINE4			    4			
+#define	LINE5			    5			
+#define	LINE6			    6			
+#define	LINE7			    7			
+
+/* Device interrupt constants */
+#define	DEV0INT			    0x00000001		
+#define	DEV1INT			    0x00000002		
+#define	DEV2INT			    0x00000004		
+#define	DEV3INT			    0x00000008		
+#define	DEV4INT			    0x00000010		
+#define	DEV5INT			    0x00000020		
+#define	DEV6INT			    0x00000040		
+#define	DEV7INT			    0x00000080		
+
+
 /* Device number */
-#define DEV0                0x00000001         
+#define DEV0                0
+#define DEV1                1   
+#define DEV2                2
+#define DEV3                3
+#define DEV4                4
+#define DEV5                5
+#define DEV6                6
+#define DEV7                7        
+
+/* Utility constants */
+#define OFFSET              3                   
+#define STATUSON            0x0F                /* constants that represents when first four bits in terminal device is on */
 
 
 /******************************* SYSCALL Constants *****************************/
