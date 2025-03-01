@@ -198,10 +198,7 @@ void passeren(int *semAdd) {
  * Parameters   :   semAdd - pointer to the semaphore to be incremented
  */
 void verhogen(int *semAdd) {
-    /* First check if the semaphore pointer is valid before dereferencing */
-    if (semAdd == NULL) {
-        PANIC();            
-    }
+
 
     /* Increment the semaphore's value by 1 */
     (*semAdd)++;
