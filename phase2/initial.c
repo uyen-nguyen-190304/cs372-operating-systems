@@ -25,7 +25,7 @@
 /*************************  NUCLEUS GLOBAL VARIABLES  ************************/
 
 int processCount;                       /* Number of started, but not yet terminated processes */
-int softBlockCount;                     /* Number of started, but not yet terminated that are in blocked state (due to an I/O or timer request) */
+int softBlockCount;                     /* Number of started, but not yet terminated blocked processes */
 pcb_PTR readyQueue;                     /* Tail pointer for the ready queue */
 pcb_PTR currentProcess;                 /* Pointer to the running process */
 int deviceSemaphores[MAXDEVICES];       /* Semaphores for external devices & pseudo-clock */
@@ -100,6 +100,7 @@ int main()
     memaddr ramtop;                     /* Top of RAM */
     devregarea_t *devRegArea;           /* Pointer to device register area */
     
+    
     /*--------------------------------------------------------------*
      * Populate the Processor 0 Pass Up Vector
      *--------------------------------------------------------------*/
@@ -145,7 +146,7 @@ int main()
     pcb_PTR initialProc;
     initialProc = allocPcb();           /* Allocate a new PCB from the free list */
     if (initialProc == NULL) {
-        PANIC();                        /* Be *panic* if it can't even create one process */
+        PANIC();                        /* Be *PANIC* if it can't even create one process */
     }
 
     /* Calculate the ramtop */
