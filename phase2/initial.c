@@ -98,6 +98,7 @@ int main()
      *--------------------------------------------------------------*/
     int i;                              /* Loop index */
     memaddr ramtop;                     /* Top of RAM */
+    devregarea_t *devRegArea;           /* Pointer to device register area */
     
     /*--------------------------------------------------------------*
      * Populate the Processor 0 Pass Up Vector
@@ -147,8 +148,14 @@ int main()
         PANIC();                        /* Be *panic* if it can't even create one process */
     }
 
+    /* Calculate the ramtop */
+    devRegArea = (devregarea_t *) RAMBASEADDR; 
+
+    /* The top of RAM is calculated by adding the base address of RAM to its size */
+    ramtop = devRegArea->rambase + devRegArea->ramsize;
+
     /* Set up the initial processor state */
-    initialProc->p_s.s_sp = RAMSTART;                               /* Set the stack pointer to the top of RAM */
+    initialProc->p_s.s_sp = ramtop;                                 /* Set the stack pointer to the top of RAM */
     initialProc->p_s.s_pc = (memaddr) test;                         /* Start execution at test */
     initialProc->p_s.s_t9 = (memaddr) test;                         /* Set t9 to test as well */
     initialProc->p_s.s_status = ALLOFF | IEPON | PLTON | IMON;      /* Enable interrupts and timer */
