@@ -5,7 +5,7 @@
  *
  * This header file declares global variables used for process management
  * and device synchronization, ensuring that the following global variable
- * are visible for any file that inlcude this header, while preventing
+ * are visible for any file that includes this header, while preventing
  * multiple inclusions
  *
  * Written by   : Uyen Nguyen

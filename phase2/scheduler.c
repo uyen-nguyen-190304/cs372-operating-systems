@@ -7,7 +7,7 @@
  *  - Track CPU time for processes using the global variables startTOD and currentTOD
  *  - Handle idle conditions:
  *      a) If no processes remain (processCount == 0), the system halts
- *      b) If processes exist but all are blockedd (softBlockedCount > 0), the scheduler
+ *      b) If processes exist but all are blocked (softBlockedCount > 0), the scheduler
  *         waits for an external interrupt
  *      c) If processes exist but none are ready (deadlock), the system panic
  * 

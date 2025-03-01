@@ -52,7 +52,7 @@ HIDDEN void getCPUTime();
 HIDDEN void waitForClock();
 HIDDEN void getSupportData();
 
-/*******************************  FUNCTION IMPLEMENTATION  *******************************/ 
+/******************************* FUNCTIONS IMPLEMENTATION *******************************/ 
 /*
  * Function     :   createProcess
  * Purpose      :   Implement the SYS1 system call to create a new process
@@ -112,7 +112,7 @@ void createProcess(state_PTR initialState, support_t *supportStruct)
 /*
  * Function     :   terminateProcess
  * Purpose      :   Implement the SYS2 system call to terminate a process and all of its progeny.
- *                  It head recursively termnates all children of the process. If the process is 
+ *                  It head recursively terminates all children of the process. If the process is 
  *                  blocked, removes it from the ASL; otherwise, removes it from the ready queue.
  *                  Returns the PCB to the free list and decrements processCount.
  * Parameters   :   proc - pointer to the PCB of the process to terminate.
@@ -399,6 +399,7 @@ void passUpOrDie(int exceptionCode) {
         terminateProcess(currentProcess);       /* Call SYS2 handler */
         currentProcess = NULL;                  /* Set the currentProcess pointer to NULL */
         scheduler();                            /* Call the scheduler to dispatch the next process */
+        PANIC();                                /* If the scheduler return, something went wrong, be PANIC */
     }
 }
 
