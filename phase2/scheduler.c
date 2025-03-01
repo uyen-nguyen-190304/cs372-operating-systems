@@ -103,9 +103,9 @@ void scheduler() {
     setTIMER(INITIALPLT);
 
     /* Load the state of the next process, transferring control to it */
-    LDST(&(currentProcess->p_s));                                  /* This should never return if context switching is successful */
+    LDST(&(currentProcess->p_s));           /* This should never return */
 
-    /* If control reaches here, something went wrong with LDST */
+    /* If control reaches here, something went wrong */
     PANIC();
 }
 
