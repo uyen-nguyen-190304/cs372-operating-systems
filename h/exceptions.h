@@ -1,13 +1,19 @@
 #ifndef EXCEPTIONS
 #define EXCEPTIONS
 
-#include "const.h"      
-#include "types.h"     
-#include "pcb.h"      
-#include "asl.h"        
-#include "scheduler.h"  
-#include "interrupts.h"
-#include "initial.h"   
+/************************* EXCEPTIONS.h *****************************
+ *
+ * This header file declares the function prototypes for handling various
+ * exceptions in the kernel, which include program trap, TLB misses or errors,
+ * system call, and TLB refill exceptions
+ *
+ * Written by   : Uyen Nguyen
+ * Last update  : 2025/02/28 
+ *
+ ********************************************************************/
+
+#include "../h/const.h"
+#include "../h/types.h"
 
 extern void programTrapExceptionHandler();
 extern void TLBExceptionHandler();
