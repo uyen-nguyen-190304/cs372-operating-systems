@@ -1,10 +1,20 @@
 #ifndef SCHEDULER
 #define SCHEDULER
 
-extern cpu_t startTOD;
-extern cpu_t currentTOD;
+/************************* SCHEDULER.h *****************************
+ *
+ * This header file declares global variables and function prototypes
+ * used in the scheduler module. 
+ * 
+ * Written by   : Uyen Nguyen
+ * Last update  : 2025/02/28 
+ *
+ *******************************************************************/
 
-extern void copyState();
-extern void scheduler();
+extern cpu_t startTOD;              /* Hold TOD value at process dispatch */
+extern cpu_t currentTOD;            /* Hold current TOD when STCK */
+
+extern void copyState();            /* Helper function to copy a processor state */
+extern void scheduler();            /* Round-robin scheduler */
 
 #endif /* SCHEDULER */
