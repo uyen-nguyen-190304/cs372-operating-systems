@@ -105,7 +105,7 @@ void createProcess(state_PTR initialState, support_t *supportStruct)
     }
 
     /* Load the saved processor state to resume execution */
-    LDST(currentProcess);
+    LDST(&(currentProcess->p_s));
 }
 
 
@@ -193,7 +193,7 @@ void passeren(int *semAdd) {
     }
 
     /* Load the saved processor state to resume execution */
-    LDST(currentProcess);
+    LDST(&(currentProcess->p_s));
 }   
 
 
@@ -220,7 +220,7 @@ void passeren(int *semAdd) {
     }
 
     /* Load the saved processor state to resume execution */
-    LDST(currentProcess);
+    LDST(&(currentProcess->p_s));
 }
 
 
@@ -273,7 +273,7 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
 
     /* If the semaphore does not go negative (unlikely for synchronous IO), 
        load the saved processor state to resume execution */
-    LDST(currentProcess);
+    LDST(&(currentProcess->p_s));
 }
 
 
@@ -300,7 +300,7 @@ void getCPUTime() {
     STCK(startTOD);
 
     /* Load the saved processor state to resume execution */
-    LDST(currentProcess);
+    LDST(&(currentProcess->p_s));
 }
 
 
@@ -353,7 +353,7 @@ void getSupportData() {
     currentProcess->p_s.s_v0 = (int)(currentProcess->p_supportStruct);  /* Type cast to int to store in s_v0 */
 
     /* Load the saved processor state to resume execution */
-    LDST(currentProcess);
+    LDST(&(currentProcess->p_s));
 }
 
 
