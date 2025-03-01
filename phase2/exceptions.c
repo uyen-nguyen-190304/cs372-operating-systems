@@ -198,6 +198,8 @@ void passeren(int *semAdd) {
  * Parameters   :   semAdd - pointer to the semaphore to be incremented
  */
 void verhogen(int *semAdd) {
+    /* Increment the semaphore's value by 1 */
+    (*semAdd)++;
 
     /* If the new value is less than or equal to 0, then one or more processes are waiting */
     if (*semAdd <= 0) {
@@ -452,12 +454,12 @@ void syscallExceptionHandler() {
         case SYS1CALL: 
             /* a1: Pointer to the initial state
                a2: Pointer to the support structure */
-            createProcess((state_PTR) currentProcess->p_s.s_a1, (support_t *) currentProcess->p_s.s_a2);
+            createProcess((state_PTR) savedExceptionState->p_s.s_a1, (support_t *) savedExceptionState->p_s.s_a2);
 
         /* SYS2: Terminate process (and all its progeny )*/
         case SYS2CALL:
             /* Invoke the SYS2 handler */
-            terminateProcess(currentProcess);
+            terminateProcess(savedExceptionState);
 
             /* Set the currentProcess pointer to NULL */
             currentProcess = NULL;
@@ -471,17 +473,17 @@ void syscallExceptionHandler() {
         /* SYS3: P operator */
         case SYS3CALL:
             /* a1: Address of the semaphore to be P'ed */
-            passeren((int *) currentProcess->p_s.s_a1);
+            passeren((int *) savedExceptionState->p_s.s_a1);
 
         /* SYS4: V operator */    
         case SYS4CALL:
             /* a1: Address of the semaphore to be V'ed */
-            verhogen((int *) currentProcess->p_s.s_a1);
+            verhogen((int *) savedExceptionState->p_s.s_a1);
 
         /* SYS5: Wait for IO Device */
         case SYS5CALL:
             /* a1: line number, a2: device number, a3: read/write indicator. */
-            waitForIODevice(currentProcess->p_s.s_a1, currentProcess->p_s.s_a2, currentProcess->p_s.s_a3);
+            waitForIODevice(savedExceptionState->p_s.s_a1, savedExceptionState->p_s.s_a2, savedExceptionState->p_s.s_a3);
 
         /* SYS6: Get CPU time*/
         case SYS6CALL:
