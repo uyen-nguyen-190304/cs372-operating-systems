@@ -32,6 +32,15 @@
 #include "../h/initial.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
+
+void uTLB_RefillHandler () {
+	setENTRYHI(0x80000000);
+	setENTRYLO(0x00000000);
+	TLBWR();	
+	LDST ((state_PTR) 0x0FFFF000);
+}
+
+
 /*******************************  FUNCTION DECLARATION  *******************************/ 
 
 HIDDEN void createProcess(state_PTR initialState, support_t *supportStruct);
@@ -196,8 +205,7 @@ void passeren(int *semAdd) {
  *                  removed from the ASL and inserted into the ready queue. Finally, resume
  *                  execution by reloading the saved processor state.
  * Parameters   :   semAdd - pointer to the semaphore to be incremented
- */
-void verhogen(int *semAdd) {
+ */void verhogen(int *semAdd) {
     /* Increment the semaphore's value by 1 */
     (*semAdd)++;
 
@@ -454,12 +462,12 @@ void syscallExceptionHandler() {
         case SYS1CALL: 
             /* a1: Pointer to the initial state
                a2: Pointer to the support structure */
-            createProcess((state_PTR) savedExceptionState->p_s.s_a1, (support_t *) savedExceptionState->p_s.s_a2);
+            createProcess((state_PTR) currentProcess->p_s.s_a1, (support_t *) currentProcess->p_s.s_a2);
 
         /* SYS2: Terminate process (and all its progeny )*/
         case SYS2CALL:
             /* Invoke the SYS2 handler */
-            terminateProcess(savedExceptionState);
+            terminateProcess(currentProcess);
 
             /* Set the currentProcess pointer to NULL */
             currentProcess = NULL;
@@ -473,17 +481,17 @@ void syscallExceptionHandler() {
         /* SYS3: P operator */
         case SYS3CALL:
             /* a1: Address of the semaphore to be P'ed */
-            passeren((int *) savedExceptionState->p_s.s_a1);
+            passeren((int *) currentProcess->p_s.s_a1);
 
         /* SYS4: V operator */    
         case SYS4CALL:
             /* a1: Address of the semaphore to be V'ed */
-            verhogen((int *) savedExceptionState->p_s.s_a1);
+            verhogen((int *) currentProcess->p_s.s_a1);
 
         /* SYS5: Wait for IO Device */
         case SYS5CALL:
             /* a1: line number, a2: device number, a3: read/write indicator. */
-            waitForIODevice(savedExceptionState->p_s.s_a1, savedExceptionState->p_s.s_a2, savedExceptionState->p_s.s_a3);
+            waitForIODevice(currentProcess->p_s.s_a1, currentProcess->p_s.s_a2, currentProcess->p_s.s_a3);
 
         /* SYS6: Get CPU time*/
         case SYS6CALL:
