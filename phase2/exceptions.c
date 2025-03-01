@@ -32,6 +32,7 @@
 #include "../h/initial.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
+/******************************* TLB REFILL HANDLER PLACEHOLDER *******************************/ 
 
 void uTLB_RefillHandler () {
 	setENTRYHI(0x80000000);
@@ -40,8 +41,7 @@ void uTLB_RefillHandler () {
 	LDST ((state_PTR) 0x0FFFF000);
 }
 
-
-/*******************************  FUNCTION DECLARATION  *******************************/ 
+/******************************* FUNCTION DECLARATION *******************************/ 
 
 HIDDEN void createProcess(state_PTR initialState, support_t *supportStruct);
 HIDDEN void terminateProcess(pcb_PTR proc);
@@ -85,27 +85,27 @@ void createProcess(state_PTR initialState, support_t *supportStruct)
         /* Insert the new process into the ready queue */
         insertProcQ(&readyQueue, newPcb);
 
+        /* Increment the process count */
+        processCount++;
+
         /* Set the blocking semaphore pointer to NULL, since the process is not blocked */
         newPcb->p_semAdd = NULL;
 
         /* Initialize accumulated CPU time to zero */
         newPcb->p_time = 0;
 
-        /* Increment the process count */
-        processCount++;
-
         /* Return success (0) to the calling process in its v0 register */
-        currentProcess->p_s.s_v0 = 0;
+        currentProcess->p_s.s_v0 = 0;           
     }
 
     /* In case there are no more free pcbs */
     else {
         /* Return an error code (-1) in caller's v0 register */
-        currentProcess->p_s.s_v0 = -1;
+        currentProcess->p_s.s_v0 = -1;          
     }
 
-    /* Load the saved processor state to resume execution at the point of the system call */
-    LDST((state_PTR) BIOSDATAPAGE);
+    /* Load the saved processor state to resume execution */
+    LDST(currentProcess);
 }
 
 
@@ -175,15 +175,15 @@ void passeren(int *semAdd) {
 
     /* If the semaphore is less than 0, then the process will be blocked */
     if (*semAdd < 0) {
-        /* Block the process by inserting it into the ASL for the given semaphore */
-        insertBlocked(semAdd, currentProcess);
-        
-        /* Copy the saved processor state into current process's pcb */        
-        copyState((state_PTR) BIOSDATAPAGE, &(currentProcess->p_s));
-
         /* Update the accumulated CPU time for currentProcess */
         STCK(currentTOD);
         currentProcess->p_time += (currentTOD - startTOD);
+
+        /* Block the process by inserting it into the ASL for the given semaphore */
+        insertBlocked(semAdd, currentProcess);
+    
+        /* Clear currentProcess since it's blocked */
+        currentProcess = NULL;
 
         /* Call the scheduler to dispatch another process */
         scheduler();                    /* This should never return */
@@ -192,8 +192,8 @@ void passeren(int *semAdd) {
         PANIC();
     }
 
-    /* Resume execution at the point where the system call was made */
-    LDST((state_PTR) BIOSDATAPAGE);
+    /* Load the saved processor state to resume execution */
+    LDST(currentProcess);
 }   
 
 
@@ -219,9 +219,8 @@ void passeren(int *semAdd) {
         insertProcQ(&readyQueue, unblockedProc);
     }
 
-    /* Resume execution at the point where the system call was made */
-    state_PTR savedExceptionState = (state_PTR) BIOSDATAPAGE;
-    LDST(savedExceptionState);
+    /* Load the saved processor state to resume execution */
+    LDST(currentProcess);
 }
 
 
@@ -259,9 +258,6 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
         STCK(currentTOD);
         currentProcess->p_time += (currentTOD - startTOD);
 
-        /* Copy the saved processor state into current process's pcb */
-        copyState((state_PTR) BIOSDATAPAGE, &(currentProcess->p_s));
-
         /* Block the current process on the device semaphore's ASL */
         insertBlocked(&(deviceSemaphores[index]), currentProcess);
 
@@ -276,8 +272,8 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
     }
 
     /* If the semaphore does not go negative (unlikely for synchronous IO), 
-       load the processor state at time SYSCALL was executed */
-    LDST((state_PTR) BIOSDATAPAGE);
+       load the saved processor state to resume execution */
+    LDST(currentProcess);
 }
 
 
@@ -291,24 +287,20 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
  * Parameters   :   None
  */
 void getCPUTime() {
-    /* Obtain the saved processor state from the BIOS Data Page */
-    state_PTR savedExceptionState;
-    savedExceptionState = (state_PTR) BIOSDATAPAGE;
-
     /* Read the current Time-Of-Day into currentTOD */
     STCK(currentTOD);
 
     /* Update the lifetime CPU time in the current process's pcb */
-    currentProcess->p_time += (currentTOD - startTOD);
+    currentProcess->p_time = currentProcess->p_time + (currentTOD - startTOD);
 
     /* Place that total CPU time into v0 of the saved exception state */
-    savedExceptionState->s_v0 = currentProcess->p_time;
+    currentProcess->p_s.s_v0 = currentProcess->p_time + (currentTOD - startTOD);
 
     /* Restart the startTOD for the next time slice */
     STCK(startTOD);
 
-    /* Load the processor state at time SYSCALL was executed */
-    LDST(savedExceptionState);
+    /* Load the saved processor state to resume execution */
+    LDST(currentProcess);
 }
 
 
@@ -323,7 +315,7 @@ void getCPUTime() {
  */
 void waitForClock() {
     /* Obtain a pointer to the pseudo-clock semaphore */
-    int *pclockSem = &deviceSemaphores[MAXDEVICES - 1];         /* Pseudo-clock semaphore is stored at last index */  
+    int *pclockSem = &deviceSemaphores[PCLOCKIDX];         /* Pseudo-clock semaphore is stored at last index */  
 
     /* Decrement the pseudo-clock semaphore */
     (*pclockSem)--;
@@ -331,9 +323,6 @@ void waitForClock() {
     /* Update the accumulated CPU usage time for the current process */
     STCK(currentTOD);
     currentProcess->p_time += (currentTOD - startTOD);
-
-    /* Copy the saved processor state into current process's pcb  */
-    copyState((state_PTR) BIOSDATAPAGE, &(currentProcess->p_s));
 
     /* Insert the current process into the blocked queue */
     insertBlocked(pclockSem, currentProcess);
@@ -361,10 +350,10 @@ void waitForClock() {
  */
 void getSupportData() {
     /* Place the support structure pointer in v0 */
-    currentProcess->p_s.s_v0 = (int)(currentProcess->p_supportStruct);
+    currentProcess->p_s.s_v0 = (int)(currentProcess->p_supportStruct);  /* Type cast to int to store in s_v0 */
 
-    /* Return control to the current process */
-    LDST(&(currentProcess->p_s));
+    /* Load the saved processor state to resume execution */
+    LDST(currentProcess);
 }
 
 
@@ -377,11 +366,6 @@ void getSupportData() {
  *                  support structure is present, the process is terminated (via SYS2), and 
  *                  the scheduler is called to dispatch another process
  * Parameters   :  exceptionCode - An index indicating which type of exception is being handled
- *
- * Behavior:
- *    - 
- *    - 
- *      
  */
 void passUpOrDie(int exceptionCode) {
     /*--------------------------------------------------------------*
@@ -450,13 +434,13 @@ void syscallExceptionHandler() {
         programTrapExceptionHandler();
     }
 
-    /* For SYSCALL exceptions numbered 9 and above, 
-       call Pass Up or Die with GENERALEXCEPT handler */
+    /* Check for non-supported SYSCALL (numbered 9 and above) */
     if ((sysNum > SYS8CALL)) {
+        /* Call Pass Up or Die with general exception handler */
         passUpOrDie(GENERALEXCEPT);
     }
 
-    /* Save the processor state before syscall into current process pcb */
+    /* Update the currentProcess's pcb with the processor state at time SYSCALL was executed */
     copyState(savedExceptionState, &(currentProcess->p_s));
 
     /* Dispatch the SYSCALL based on the syscall number in a0 */
