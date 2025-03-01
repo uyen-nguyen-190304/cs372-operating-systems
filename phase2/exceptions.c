@@ -202,7 +202,7 @@ void verhogen(int *semAdd) {
 
     /* Resume execution at the point where the system call was made */
     state_PTR savedExceptionState = (state_PTR) BIOSDATAPAGE;
-    LDST(savedExceptionState)
+    LDST(savedExceptionState);
 }
 
 
