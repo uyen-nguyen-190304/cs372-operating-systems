@@ -455,7 +455,10 @@ void syscallExceptionHandler() {
     if ((sysNum > SYS8CALL)) {
         passUpOrDie(GENERALEXCEPT);
     }
-    
+
+    /* Save the processor state before syscall into current process pcb */
+    copyState(savedExceptionState, &(currentProcess->p_s));
+
     /* Dispatch the SYSCALL based on the syscall number in a0 */
     switch (sysNum) {
         /* SYS1: Create process */

@@ -54,7 +54,7 @@ void generalExceptionHandler() {
 
     /* Extract the exception code from cause register */
     int exceptionCode;
-    exceptionCode = (savedExceptionState->s_cause & GETEXCEPTIONCODE) >> CAUSESHIFT;   
+    exceptionCode = ((savedExceptionState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;   
 
     /* Dispatch to the correct handler based on the exception code */
     if (exceptionCode == INTCONST) {
