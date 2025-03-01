@@ -108,13 +108,10 @@
 #define TLBMAX              3                   /* maximum TLB exception code */
 #define SYSCALLCONST        8                   /* SYSCALL exception code */
 
-#define RESERVEDINSTRUCTION 0xFFFFFF28          
+#define RESERVEDINSTRUCTION 0xFFFFFF28          /* reserved instruction code */
 
 #define GETEXCEPTIONCODE    0x0000007C          /* mask for the exception code (bits 6..2) */
 #define CAUSESHIFT          2                   /* number of bits to shift right to get exception code */
-
-#define ERRORCONST          -1                  /* indicate an error occurred */
-#define SUCCESSCONST        0                   /* indicate success */
 
 /* Cause register constants for interrupt lines */
 #define LINE1INT            0x00000200          /* interrupt line 1 */
@@ -158,7 +155,6 @@
 /* Utility constants */
 #define OFFSET              3                   
 #define STATUSON            0x0F                /* constants that represents when first four bits in terminal device is on */
-
 
 /******************************* SYSCALL Constants *****************************/
 

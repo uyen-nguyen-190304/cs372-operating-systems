@@ -22,7 +22,7 @@
 #include "../h/interrupts.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
-/*************************  NUCLEUS GLOBAL VARIABLES  ************************/
+/************************* NUCLEUS GLOBAL VARIABLES ************************/
 
 int processCount;                       /* Number of started, but not yet terminated processes */
 int softBlockCount;                     /* Number of started, but not yet terminated blocked processes */
