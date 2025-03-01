@@ -45,8 +45,8 @@ void uTLB_RefillHandler () {
 
 HIDDEN void createProcess(state_PTR initialState, support_t *supportStruct);
 HIDDEN void terminateProcess(pcb_PTR proc);
-HIDDEN void passeren(int *semAdd);
-HIDDEN void verhogen(int *semAdd);
+HIDDEN void passeren(int &semAdd);
+HIDDEN void verhogen(int &semAdd);
 HIDDEN void waitForIODevice(int lineNum, int deviceNum, int readBoolean);
 HIDDEN void getCPUTime();
 HIDDEN void waitForClock();
@@ -169,7 +169,7 @@ void terminateProcess(pcb_PTR proc)
  *                  is invoked. Otherwise, resume by loading the saved processor state.
  * Parameters   :   semAdd - pointer to the semaphore to be decremented
  */ 
-void passeren(int *semAdd) {
+void passeren(int &semAdd) {
     /* Decrement the semaphore's value by 1 */
     (*semAdd)--;
 
@@ -205,7 +205,7 @@ void passeren(int *semAdd) {
  *                  removed from the ASL and inserted into the ready queue. Finally, resume
  *                  execution by reloading the saved processor state.
  * Parameters   :   semAdd - pointer to the semaphore to be incremented
- */void verhogen(int *semAdd) {
+ */void verhogen(int &semAdd) {
     /* Increment the semaphore's value by 1 */
     (*semAdd)++;
 
