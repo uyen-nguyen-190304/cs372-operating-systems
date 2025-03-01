@@ -199,10 +199,6 @@ void passeren(int *semAdd) {
  */
 void verhogen(int *semAdd) {
 
-
-    /* Increment the semaphore's value by 1 */
-    (*semAdd)++;
-
     /* If the new value is less than or equal to 0, then one or more processes are waiting */
     if (*semAdd <= 0) {
         /* Remove the first blocked process from the semaphore's queue */
