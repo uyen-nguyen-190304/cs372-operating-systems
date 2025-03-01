@@ -33,8 +33,17 @@ int deviceSemaphores[MAXDEVICES];       /* Semaphores for external devices & pse
 /******************************* EXTERNAL ELEMENTS *******************************/
 
 extern void test();                     /* Given in the test file */
-extern void uTLB_RefillHandler();       /* TLB-refill handler (stub as for Phase 2) */
 HIDDEN void generalExceptionHandler();  /* Declaration of the general exception handler */
+
+/******************************* PLACEHOLDER UTLB_REFILLHANDLER *******************************/
+
+/* Stub for the TLB-Refill Handler */
+void UTLB_RefillHandler() {
+    setENTRYHI(0x80000000);
+    setENTRYLO(0x00000000);
+    TLBWR();
+    LDST((state_PTR) 0x0FFFF000);
+}
 
 /******************************* FUNCTION IMPLEMENTATION *****************************/
 
