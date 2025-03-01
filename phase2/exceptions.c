@@ -32,6 +32,27 @@
 #include "../h/initial.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
+/*******************************  FUNCTION DECLARATION  *******************************/ 
+
+HIDDEN void createProcess(state_PTR initialState, support_t *supportStruct);
+HIDDEN void terminateProcess(pcb_PTR proc);
+HIDDEN void passeren(int *semAdd);
+HIDDEN void verhogen(int *semAdd);
+HIDDEN void waitForIODevice(int lineNum, int deviceNum, int readBoolean);
+HIDDEN void getCPUTime();
+HIDDEN void waitForClock();
+HIDDEN void getSupportData();
+
+
+
+void uTLB_RefillHandler() {
+    setENTRYHI(0x80000000);
+    setENTRYLO(0x00000000);
+    TLBWR();
+    LDST((state_PTR) 0x0FFFF000);
+}
+
+
 /*******************************  FUNCTION IMPLEMENTATION  *******************************/ 
 /*
  * Function     :   createProcess

@@ -102,7 +102,7 @@ void scheduler() {
     /* Set the processor local timer to initial time slice (5ms) */
     setTIMER(INITIALPLT);
 
-    /* Loacd the state of the next process, transferring control to it */
+    /* Load the state of the next process, transferring control to it */
     LDST(&(currentProcess->p_s));                                  /* This should never return if context switching is successful */
 
     /* If control reaches here, something went wrong with LDST */
