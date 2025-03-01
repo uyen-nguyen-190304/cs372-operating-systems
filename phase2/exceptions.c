@@ -198,6 +198,8 @@ void passeren(int *semAdd) {
  * Parameters   :   semAdd - pointer to the semaphore to be incremented
  */
 void verhogen(int *semAdd) {
+    dev_tprint("verhogen: semAdd=%x, value before=%d\n", semAdd, *semAdd);
+
     /* Increment the semaphore's value by 1 */
     (*semAdd)++;
 
