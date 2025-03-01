@@ -43,7 +43,7 @@ kernel.core.umps: kernel
 	$(EF) -k kernel
 
 kernel: p2test.o $(OBJS)
-	$(LD) $(LDCOREFLAGS) $(LIBDIR)/crtso.o p2test.o $(OBJS) $(LIBDIR)/libumps.o -o kernel
+	$(LD) $(LDCOREFLAGS) p2test.o $(OBJS) $(LIBDIR)/libumps.o -o kernel
 
 
 %.o: %.c $(DEFS)

@@ -201,7 +201,8 @@ void verhogen(int *semAdd) {
     }
 
     /* Resume execution at the point where the system call was made */
-    LDST((state_PTR) BIOSDATAPAGE);
+    state_PTR savedExceptionState = (state_PTR) BIOSDATAPAGE;
+    LDST(savedExceptionState)
 }
 
 
@@ -415,7 +416,7 @@ void syscallExceptionHandler() {
     savedExceptionState = (state_PTR) BIOSDATAPAGE;
 
     /* Retrieve the system call number from the saved state */
-    int sysNum; 
+    unsigned int sysNum;                    /* Ensure that the SYSCALL number is non-negative */
     sysNum = savedExceptionState->s_a0;
 
     /* Increment the PC by WORDLEN (4) to avoid infinite SYSCALL loop */
@@ -428,6 +429,12 @@ void syscallExceptionHandler() {
     
         /* Handle it as a Program Trap */
         programTrapExceptionHandler();
+    }
+
+    /* For SYSCALL exceptions numbered 9 and above, 
+       call Pass Up or Die with GENERALEXCEPT handler */
+    if ((sysNum > SYS8CALL)) {
+        passUpOrDie(GENERALEXCEPT);
     }
     
     /* Dispatch the SYSCALL based on the syscall number in a0 */
@@ -478,11 +485,6 @@ void syscallExceptionHandler() {
         /* SYS8: Get support data */
         case SYS8CALL:
             getSupportData();
-
-        /* In case where the SYSCALL number is not in range [0..8] */
-        default:
-            /* Treat it as a program trap */
-            programTrapExceptionHandler();
     }
 }
 
