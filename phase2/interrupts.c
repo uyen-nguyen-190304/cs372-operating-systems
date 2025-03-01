@@ -1,6 +1,6 @@
 /******************************* INTERRUPTS.c ***************************************
  *
- * 
+ * This file implements various interrupt service routines and 
  * 
  * Written by Uyen Nguyen
  * Last updated: 2025/02/28
@@ -17,84 +17,102 @@
 #include "../h/interrupts.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
-cpu_t remainingTime;
+/****************************** GLOBAL VARIABLES ******************************/
 
+cpu_t remainingTime;        /* Remaining time left on current process's quantum*/
 
-/*******************************  HELPER FUNCTION  *******************************/
+/****************************  HELPER FUNCTION  *******************************/
 
+/*
+ * Function     :   findDeviceNumer
+ * Purpose      :   Determine which specifc device triggered an interrupt on a given line.
+ *                  The system's device register area maintains a bit map for each interrupt line.
+ *                  This function extracts the bitmap corresponding to the provided interrupt line
+ *                  (adjust for the predefined OFFSET (3)), then checks each bit to identify which
+ *                  device (from DEV0 to DEV7) triggered the interrupt 
+ * Parameters   :   lineNumber - The interrupt line number, within range [3..7]
+ * Returns      :   The device number (0-7) that caused the interrupt  
+ */
 int findDeviceNumber(int lineNumber) {
+    /* Map the base RAM address to the device register area structure */
     devregarea_t *devRegArea;
-    unsigned int bitMap;
-
     devRegArea = (devregarea_t *) RAMBASEADDR;
+
+    /* Obtain the interrupt bitmap for the specific line (adjusted by OFFSET)*/
+    unsigned int bitMap;
     bitMap = devRegArea->interrupt_dev[lineNumber - OFFSET];
 
+    /* Check each device bit in order: if a bit is set, return that device number */
     if ((bitMap & DEV0INT) != ALLOFF) {
+        /* Device 0 triggered the interrupt */
         return DEV0;
-    }
-
-    else if ((bitMap & DEV1INT) != ALLOFF) {
+    } else if ((bitMap & DEV1INT) != ALLOFF) {
+        /* Device 1 triggered the interrupt */
         return DEV1;
-    }
-
-    else if ((bitMap & DEV2INT) != ALLOFF) {
+    } else if ((bitMap & DEV2INT) != ALLOFF) {
+        /* Device 2 triggired the interrupt */
         return DEV2;
-    }
-
-    else if ((bitMap & DEV3INT) != ALLOFF) {
+    } else if ((bitMap & DEV3INT) != ALLOFF) {
+        /* Device 3 triggered the interrupt */
         return DEV3;
-    }
-
-    else if ((bitMap & DEV4INT) != ALLOFF) {
+    } else if ((bitMap & DEV4INT) != ALLOFF) {
+        /* Device 4 triggered the interrupt */
         return DEV4;
-    }
-
-    else if ((bitMap & DEV5INT) != ALLOFF) {
+    } else if ((bitMap & DEV5INT) != ALLOFF) {
+        /* Device 5 triggered the interrupt */
         return DEV5;
-    }
-
-    else if ((bitMap & DEV6INT) != ALLOFF) {
+    } else if ((bitMap & DEV6INT) != ALLOFF) {
+        /* Device 6 triggered the interrupt */
         return DEV6;
-    }
-
-    else {
+    } else {
+        /* Device 7 triggered the interrupt */
         return DEV7;
     }
 }
 
 /*******************************  FUNCTION IMPLEMENTATION  *******************************/ 
 
+/*
+ * Function     :   nonTimerInterrupt
+ * Purpose      :   This function handles interrupts from peripheral devices (interrupt line 3-7).
+ *                  It retrieves the saved exception state, determines which interrupt line is active, 
+ *                  identifies the specific device causing the interrupt, and then acknowledges the 
+ *                  interrupt by sending an ACK command to the device. It also unblocks a process waiting
+ *                  on the corresponding device semaphore, updates its status, and places it on the ready queue.
+ *                  Finally, it returns control to the interrupted process (by loading its saved state) or 
+ *                  calls the scheduler if no process is currently active.
+ * Parameters   :   None
+ */
 void nonTimerInterrupt() {
     /* Local variables declaration */
     int lineNumber, deviceNumber, deviceIndex, statusCode;
-    pcb_PTR unblockedProc;
-
+    pcb_PTR unblockedProc;      
 
     /* Retrieve the saved processor state at the time of exception */
     state_PTR savedExceptionState;
     savedExceptionState = (state_PTR) BIOSDATAPAGE;
 
-    /* Access the dev register area */
+    /* Obtain the base address for device registers */
     devregarea_t *devRegArea;
     devRegArea = (devregarea_t *) RAMBASEADDR;
 
-    /* Determine the highest-priority interrupting line (3-7) */
+    /* Determine which peripheral interrupt line is active (priority order: line 3 to 7) */
     if (((savedExceptionState->s_cause) & LINE3INT) != ALLOFF) {
-        lineNumber = DISKINT;
+        lineNumber = DISKINT;           /* Interrupt from disk device (line 3) */
     } else if (((savedExceptionState->s_cause) & LINE4INT) != ALLOFF) {
-        lineNumber = FLASHINT;
+        lineNumber = FLASHINT;          /* Interrupt from flash device (line 4) */
     } else if (((savedExceptionState->s_cause) & LINE5INT) != ALLOFF) {
-        lineNumber = NETWINT;
+        lineNumber = NETWINT;           /* Interrupt from network device (line 5)*/
     } else if (((savedExceptionState->s_cause) & LINE6INT) != ALLOFF) {
-        lineNumber = PRNTINT;
+        lineNumber = PRNTINT;           /* Interrupt from printer (line 6) */
     } else {
-        lineNumber = TERMINT;
+        lineNumber = TERMINT;           /* Otherwise, interrupt from terminal (line 7) */
     }
 
-    /* Determine the specific device number causing the interrupt */
+    /* Identify the specific device within the interrupt line that caused the interrupt */
     deviceNumber = findDeviceNumber(lineNumber);
 
-    /* Compute the index in the deviceSemaphores and device register array */
+    /* Calculate the index into the deviceSemaphores array and the device register area */
     deviceIndex = ((lineNumber - OFFSET) * DEVPERINT) + deviceNumber;
     
     /* For terminal device, check if it's a write or read*/
