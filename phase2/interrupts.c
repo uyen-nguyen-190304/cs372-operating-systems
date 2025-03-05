@@ -73,7 +73,7 @@ int findDeviceNumber(int lineNumber) {
         /* Device 1 triggered the interrupt */
         return DEV1;
     } else if ((bitMap & DEV2INT) != ALLOFF) {
-        /* Device 2 triggired the interrupt */
+        /* Device 2 triggered the interrupt */
         return DEV2;
     } else if ((bitMap & DEV3INT) != ALLOFF) {
         /* Device 3 triggered the interrupt */
@@ -285,7 +285,7 @@ void intervalTimerInterrupt() {
     }
 
     /* Reset the pseudo-clock to zero to block SYS7 and ensure the pseudo-clock semaphore does not grow positive */
-       deviceSemaphores[PCLOCKIDX] = 0;
+    deviceSemaphores[PCLOCKIDX] = 0;
 
     /* Return control to the current process (when there is actually a current process) */
     if (currentProcess != NULL) {

@@ -205,7 +205,8 @@ void passeren(int *semAdd) {
  *                  removed from the ASL and inserted into the ready queue. Finally, resume
  *                  execution by reloading the saved processor state.
  * Parameters   :   semAdd - pointer to the semaphore to be incremented
- */void verhogen(int *semAdd) {
+ */
+void verhogen(int *semAdd) {
     /* Increment the semaphore's value by 1 */
     (*semAdd)++;
 
@@ -246,9 +247,6 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
         index += DEVPERINT;
     }
 
-    /* Increment the soft block count */
-    softBlockCount++;
-
     /* Decrement the semaphore by 1 (P operation) */
     (deviceSemaphores[index])--;   
 
@@ -261,6 +259,9 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
         /* Block the current process on the device semaphore's ASL */
         insertBlocked(&(deviceSemaphores[index]), currentProcess);
 
+        /* Increment the soft block count */
+        softBlockCount++;  
+ 
         /* Clear currentProcess since it's blocked */
         currentProcess = NULL;
 
