@@ -19,10 +19,10 @@ typedef unsigned int memaddr;
 
 /* Device Register */
 typedef struct {
-	unsigned int d_status;
-	unsigned int d_command;
-	unsigned int d_data0;
-	unsigned int d_data1;
+	unsigned int		d_status;
+	unsigned int 		d_command;
+	unsigned int 		d_data0;
+	unsigned int 		d_data1;
 } device_t;
 
 #define t_recv_status		d_status
@@ -33,40 +33,40 @@ typedef struct {
 
 /* Bus Register Area */
 typedef struct {
-	unsigned int rambase;
-	unsigned int ramsize;
-	unsigned int execbase;
-	unsigned int execsize;
-	unsigned int bootbase;
-	unsigned int bootsize;
-	unsigned int todhi;
-	unsigned int todlo;
-	unsigned int intervaltimer;
-	unsigned int timescale;
-	unsigned int TLB_Floor_Addr;
-	unsigned int inst_dev[DEVINTNUM];
-	unsigned int interrupt_dev[DEVINTNUM];
-	device_t	devreg[DEVINTNUM * DEVPERINT];
+	unsigned int 		rambase;
+	unsigned int 		ramsize;
+	unsigned int 		execbase;
+	unsigned int 		execsize;
+	unsigned int 		bootbase;
+	unsigned int 		bootsize;
+	unsigned int 		todhi;
+	unsigned int 		todlo;
+	unsigned int 		intervaltimer;
+	unsigned int 		timescale;
+	unsigned int 		TLB_Floor_Addr;
+	unsigned int 		inst_dev[DEVINTNUM];
+	unsigned int 		interrupt_dev[DEVINTNUM];
+	device_t			devreg[DEVINTNUM * DEVPERINT];
 } devregarea_t;
 
 
 /* Pass Up Vector */
 typedef struct passupvector {
-    unsigned int tlb_refill_handler;
-    unsigned int tlb_refill_stackPtr;
-    unsigned int exception_handler;
-    unsigned int exception_stackPtr;
+    unsigned int 		tlb_refill_handler;
+    unsigned int 		tlb_refill_stackPtr;
+    unsigned int 		exception_handler;
+    unsigned int 		exception_stackPtr;
 } passupvector_t;
 
 /************************* STATE STRUCTURE *****************************/
 
 #define STATEREGNUM	31
 typedef struct state_t {
-	unsigned int	s_entryHI;
-	unsigned int	s_cause;
-	unsigned int	s_status;
-	unsigned int 	s_pc;
-	int	 			s_reg[STATEREGNUM];
+	unsigned int		s_entryHI;
+	unsigned int		s_cause;
+	unsigned int		s_status;
+	unsigned int 		s_pc;
+	int	 				s_reg[STATEREGNUM];
 
 } state_t, *state_PTR;
 
@@ -106,19 +106,26 @@ typedef struct state_t {
 
 typedef struct context_t {
 	/* process context fields */
-	unsigned int	c_stackPtr,					/* stack pointer value   */
-					c_status,					/* status register value */
-					c_pc;						/* PC address 			 */	
+	unsigned int		c_stackPtr,					/* stack pointer value   */
+						c_status,					/* status register value */
+						c_pc;						/* PC address 			 */	
 } context_t;
 
 /************************* SUPPORT STRUCTURE *****************************/
 
+typedef struct pageTableEntry_t {
+	unsigned int 		pt_entryHI;					/* entry HI value */
+	unsigned int 		pt_entryLO;					/* entry LO value */	
+} pageTableEntry_t;
+
 typedef struct support_t {
-	int				sup_asid;					/* process ID (asid)   */
-	state_t			sup_exceptState[2];			/* stored excpt states */
-	context_t		sup_exceptContext[2];		/* pass up contexts    */
-	
-	/* ... other fields to be added later */
+	int					sup_asid;					/* process ID (asid)   */
+	state_t				sup_exceptState[2];			/* stored excpt states */
+	context_t			sup_exceptContext[2];		/* pass up contexts    */
+
+	pageTableEntry_t	sup_privatePgTbl[32];		/* private page table  */
+	int					sup_stackTLB[500];			/* stack area for the process's TLB exception handler */
+	int					sup_stackGen[500];			/* stack area for the process's Support Level general exception handler */	
 } support_t;
 
 /************************* PROCESS CONTROL BLOCK STRUCTURE *****************************/
@@ -126,31 +133,31 @@ typedef struct support_t {
 /* process Control Block (PCB) type */
 typedef struct pcb_t {
 	/* process queue fields */
-	struct pcb_t	*p_next,			/* pointer to next entry */
-					*p_prev,			/* pointer to prev entry */
+	struct pcb_t		*p_next,			/* pointer to next entry */
+						*p_prev,			/* pointer to prev entry */
 
 	/* process tree fields */	
-					*p_prnt,			/* pointer to parent    */
-					*p_child,			/* pointer to 1st child */
-					*p_sibNext,			/* pointer to next sibling */
-					*p_sibPrev;			/* pointer to prev sibling */
+						*p_prnt,			/* pointer to parent    */
+						*p_child,			/* pointer to 1st child */
+						*p_sibNext,			/* pointer to next sibling */
+						*p_sibPrev;			/* pointer to prev sibling */
 	
 	/* process status information */
-	state_t			p_s;				/* processor state */
-	cpu_t			p_time;				/* cpu time used by proc */
-	int				*p_semAdd;			/* pointer to sema4 on which process blocked */
+	state_t				p_s;				/* processor state */
+	cpu_t				p_time;				/* cpu time used by proc */
+	int					*p_semAdd;			/* pointer to sema4 on which process blocked */
 	
 	/* support layer information */
-	support_t		*p_supportStruct; 	/* pointer to support struct */
+	support_t			*p_supportStruct; 	/* pointer to support struct */
 } pcb_t, *pcb_PTR;
 
 /************************* SEMAPHORE DESCRIPTOR STRUCTURE *****************************/
 
 /* semaphore descriptor type */
 typedef struct semd_t {
-	struct semd_t	*s_next;			/* next element on the ASL */
-	int				*s_semAdd;			/* pointer to the semaphore */
-	pcb_t			*s_procQ;			/* tail pointer to a process queue */
+	struct semd_t		*s_next;			/* next element on the ASL */
+	int					*s_semAdd;			/* pointer to the semaphore */
+	pcb_t				*s_procQ;			/* tail pointer to a process queue */
 } semd_t, *semd_PTR;
 
 #endif /* TYPES */
