@@ -518,18 +518,19 @@ void TLBExceptionHandler() {
  * Function     :   uTLB_RefillHandler
   
  */
-void uTLB_RefillHandler () {
+void uTLB_RefillHandler() {
     /* Retrieve the processor state at the time of exception */
     state_PTR savedExceptionState;
     savedExceptionState = (state_PTR) BIOSDATAPAGE;
 
     /* Determine the page number of the missing TLB entry */
-    int p;        /* Page number of the missing TLB entry */
-    p = ((savedExceptionState->s_entryHI) & VPNMASK) >> VPNSHIFT;
+    unsigned int missingPageNo;
+    missingPageNo = ((savedExceptionState->s_entryHI) & VPNMASK) >> VPNSHIFT;
+    missingPageNo = missingPageNo % NUMPAGES;   /* Ensure the page number is within bounds */
 
-    /* Get the Page Table entry for page number p for the Current Process */
-    pageTableEntry_t *ptEntry;
-    ptEntry = &(currentProcess->p_supportStruct->sup_pageTable[p]);
+    /* Get the Page Table entry corresponds to 'missingPageNo' */
+    pte_t *ptEntry;
+    ptEntry = &(currentProcess->p_supportStruct->sup_pageTable[missingPageNo]);
 
     /* Write this Page Table entry into the TLB */
     setENTRYHI(ptEntry->pt_entryHI);
