@@ -32,7 +32,7 @@ void initSwapStructs() {
     /* Iteratively initialize the Swap Pool table */
     int i;
     for (i = 0; i < SWAPPOOLSIZE; i++) {
-        swapPoolTable[i].ASID = EMPTYFRAME; /* Set the ASID to EMPTYFRAME (-1) */
+        swapPoolTable[i].asid = EMPTYFRAME; /* Set the ASID to EMPTYFRAME (-1) */
     }
 }
 
@@ -69,7 +69,6 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
     int index;                      /* Index to the device register array and semaphore array*/
-    unsigned int status;            /* Variable to hold the device status returned by SYS5 */
 
     /*--------------------------------------------------------------*
     * 1. Identify the device number for the flash
@@ -104,7 +103,7 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
     }
 
     /* Wait for the device to complete the operation */
-    SYSCALL(SYS5CALL, FLASHINT, (asid - 1), operation, 0);
+    SYSCALL(SYS5CALL, FLASHINT, (asid - 1), operation);
 
     /* Re-enable interrupts now that the atomic operation is complete */
     setInterrupt(TRUE);
@@ -122,7 +121,7 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
 
 /************************* PAGE REPLACEMENT ALGORITHM *************************/
 
-void pageReplacement() {
+int pageReplacement() {
     /* Declare local variable */
     static int frameIndex = 0;          /* Index to the next frame to be used for replacement */
 
@@ -173,7 +172,7 @@ void pager() {
     * 2. Determine the case of the TLB exception
     *---------------------------------------------------------------*/    
     /* Get the saved exception state in Current Process's Support Structure for TLB exception */
-    savedState = currentSupportStruct->sup_exceptState[0];
+    savedState = &(currentSupportStruct->sup_exceptState[PGFAULTEXCEPT]);
 
     /* Extract the exception code from the saved exception state */
     exceptionCode = ((savedState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;
@@ -217,7 +216,7 @@ void pager() {
         setInterrupt(FALSE); 
 
         /* a. Update process's Page Table: mark Page Table entry as not valid */
-        swapPoolTable[frameNumber].pte->entryLO &= VALIDOFF;
+        swapPoolTable[frameNumber].pte->pt_entryLO &= VALIDOFF;
 
         /* b. Erase all the entries in the TLB */
         TLBCLR();               
@@ -226,7 +225,7 @@ void pager() {
         setInterrupt(TRUE); 
 
         /* c. Update process's backing store */
-        status1 = flaskDeviceOperation(FLASHWRITE, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
+        status1 = flashDeviceOperation(FLASHWRITE, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
 
         /* Treat any error status from the write operation as a program trap */
         if (status1 != SUCCESS) {
@@ -237,7 +236,7 @@ void pager() {
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
-    status2 = flashDiskOperation(FLASHREAD, currentSupportStruct->sup_asid, frameAddress, swapPoolTable[frameNumber].vpn);
+    status2 = flashDeviceOperation(FLASHREAD, currentSupportStruct->sup_asid, frameAddress, swapPoolTable[frameNumber].vpn);
 
     /* Treat any error status from the read operation as a program trap */
     if (status2 != SUCCESS) {
@@ -249,7 +248,7 @@ void pager() {
     *---------------------------------------------------------------*/ 
     swapPoolTable[frameNumber].vpn  = missingPageNo;
     swapPoolTable[frameNumber].asid = currentSupportStruct->sup_asid;
-    swapPoolTable[frameNumber].pte  = &(currentSupportStruct->sup_privatePgTbl[missingPageNo])
+    swapPoolTable[frameNumber].pte  = &(currentSupportStruct->sup_privatePgTbl[missingPageNo]);
 
     /* NOTE: Disable interrupt to perform step 11 & 12 atomically */
     setInterrupt(FALSE);
@@ -276,7 +275,7 @@ void pager() {
     /*--------------------------------------------------------------*
     * 14. Return control to the Current Process to retry the instruction that caused the page fault
     *---------------------------------------------------------------*/ 
-    LDST(savedExceptionState);
+    LDST(savedState);
 }
 
 /******************************* END OF VMSUPPORT.c *******************************/
