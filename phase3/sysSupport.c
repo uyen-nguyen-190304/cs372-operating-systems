@@ -86,7 +86,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     * 2. Check if the parameters are valid
     *---------------------------------------------------------------*/
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
-    if ((virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
+    if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
         terminateUserProcess();
     } 
@@ -184,7 +184,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     * 2. Check if the parameters are valid
     *---------------------------------------------------------------*/
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
-    if ((virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
+    if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
         terminateUserProcess();
     }
@@ -281,7 +281,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     * 2. Check if the parameters are valid
     *---------------------------------------------------------------*/
    /* Validate that the address to read is in the user segment (KUSEG) */
-   if (virtualAddress < KUSEG) {
+   if ((int) virtualAddress < KUSEG) {
     /* Be brutal: SYS9 on bad argument */
     terminateUserProcess();
    }
