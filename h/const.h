@@ -37,6 +37,9 @@
 #define IMON                0x0000FF00          /* enable all interrupts */
 #define PLTON               0x08000000          /* Processor Local Timer enable */
 #define USERPON             0x00000008          /* set user-mode after LDST */
+#define DIRTYON             0x00000400          /* dirty bit on */
+#define VALIDON             0x00000200          /* valid bit on */
+#define VALIDOFF            0xFFFFFDFF          /* valid bit off */
 
 /******************************* Timer Constants *****************************/
 
@@ -199,5 +202,44 @@
 
 /* Macro to read the TOD clock */
 #define STCK(T) ((T) = ((* ((cpu_t *) TODLOADDR)) / (* ((cpu_t *) TIMESCALEADDR))))
+
+/******************************* Mess to place somewhere *****************************/
+
+#define SWAPPOOLSTART       0x20020000          /* Swap Pool's starting address */
+#define SWAPPOOLSIZE        2 * UPROCMAX        /* Swap Pool size */
+#define EMPTYFRAME         -1                   /* Empty frame in the Swap Pool */
+
+#define NUMPAGES            32                  /* Number of pages in the process's private page table */
+#define VPNMASK             0xFFFFF000          /* Virtual Page Number mask */
+#define VPNSHIFT            12                  /* Virtual Page Number shift */
+#define TLBMODIFICATION     1                   /* TLB modification exception code */
+#define UPROCMAX            8                   /* Number of U-procs to be concurrently executed */
+#define MAXSTRINGLENGTH     128                 /* Maximum string length for terminal I/O */
+#define STATUSMASK          0xFF                /* Status mask for device status */
+#define DEVICEREADY        1                    /* Device ready status for printer */
+#define UPROCTEXTSTART     0x80000000          /* U-proc's text segment start address */
+
+#define RECEIVECHAR       2              /* Receive the character from the line */
+#define TRANSMITCHAR        2              /* Transmit the character over the line */
+#define TERMINALSHIFT       8                 /* Shift for terminal device register */  
+#define PRINTCHR            2                   /* Transmit the character in DATA0 over the line */
+#define CHARTRANSMITTED     5           /* Character transmitted status for printer */
+#define CHARRECEIVED        5           /* Character received status for terminal */
+#define EOL                 0x0A            /* End of line character */
+#define CHARRECEIVEDSHIFT    8           /* Shift for character received status */
+
+#define FLASHREAD           1             /* Flash read command */
+#define FLASHWRITE          2             /* Flash write command */
+
+#define BLOCKSHIFT          8           /* Block shift for flash device */
+#define READBLK             2         /* Read block command */
+#define WRITEBLK            3         /* Write block command */
+
+#define USERSTACKTOP          0xC0000000          /* User stack top address */
+#define ASIDSHIFT   6       /* ASID shift for the process ID */
+#define VPNSTART 0x80000        /* Virtual Page Number start address */
+#define STACKPAGEVPN 0xBFFFFFFF /* Stack page Virtual Page Number */
+
+
 
 #endif  /* CONSTS */
