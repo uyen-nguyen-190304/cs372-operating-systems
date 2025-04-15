@@ -2,7 +2,7 @@
  *  
  * 
  * Written by  : Uyen Nguyen
- * Last update : 2025/04/04
+ * Last update : 2025/04/13
  * 
  ***********************************************************************************/
 
@@ -38,7 +38,7 @@ void test() {
     static support_t supportStructArray[UPROCMAX];      /* Array of support structures for U-procs */
 
     /*--------------------------------------------------------------*
-    * 1. Initialize Phase 3 Data Structure 
+     * 1. Initialize Phase 3 Data Structure 
     *---------------------------------------------------------------*/
     /* Initialize Swap Pool semaphore & table */
     initSwapStructs();                                 
@@ -100,7 +100,7 @@ void test() {
             supportStructArray[pid].sup_privatePgTbl[j].pt_entryHI = (VPNSTART + j) << VPNSHIFT | (pid << ASIDSHIFT);
 
             /* Set the Dirty Bit in EntryLO */
-            supportStructArray[pid].sup_privatePgTbl[j].pt_entryLO = DIRTYBIT;
+            supportStructArray[pid].sup_privatePgTbl[j].pt_entryLO = DIRTYON;
         }
 
         /* (Re)Set the VPN for Stack Page (last entry) to 0xBFFFF */
