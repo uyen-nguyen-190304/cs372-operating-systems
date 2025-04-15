@@ -59,7 +59,7 @@ void uTLB_RefillHandler() {
 
     /* Get the Page Table entry corresponds to 'missingPageNo' */
     pte_t *ptEntry;
-    ptEntry = &(currentProcess->p_supportStruct->sup_pageTable[missingPageNo]);
+    ptEntry = &(currentProcess->p_supportStruct->sup_privatePgTbl[missingPageNo]);
 
     /* Write this Page Table entry into the TLB */
     setENTRYHI(ptEntry->pt_entryHI);
