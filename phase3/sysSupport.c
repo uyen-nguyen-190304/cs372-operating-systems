@@ -53,7 +53,7 @@ void getTOD(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 2. Place the number in U-proc's v_0 register for return value
     *---------------------------------------------------------------*/
-    savedExceptionState0->s_v0 = currentTOD; 
+    savedState->s_v0 = currentTOD; 
 
     /*--------------------------------------------------------------*
     * 3. Return control to the instruction after SYSCALL instruction
@@ -68,7 +68,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
-    unsigned int virtualAddress;        /* Virtual address in the U-proc's address space where the string begins */
+    char virtualAddress;                /* Virtual address in the U-proc's address space where the string begins */
     int stringLength;                   /* Length of the string to print */
     int deviceNum;                      /* Device number (derived from the support struct's ASID) */
     int index;                          /* Index into the device register array and semaphore array */
@@ -117,7 +117,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
         setSTATUS(getSTATUS() & IECOFF);
 
         /* Write the character to DATA0, issue the transmit command in COMMAND */
-        devRegArea->devreg[index].d_data0 = (unsigned int) *(virtualAddress + i);
+        devRegArea->devreg[index].d_data0 = (char) *(virtualAddress + i);
         devRegArea->devreg[index].d_command = PRINTCHR;
 
         /* Block until the printer operation completes */
@@ -166,7 +166,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
-    unsigned int virtualAddress;    /* Virtual address in the U-proc's address space where the string begins */
+    char virtualAddress;            /* Virtual address in the U-proc's address space where the string begins */
     int stringLength;               /* Length of the string to print */
     int deviceNum;                  /* Device number (derived from the support struct's ASID) */                       
     int index;                      /* Index into the device register array and semaphore array */
@@ -216,7 +216,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
         setSTATUS(getSTATUS() & IECOFF);
 
         /* Place the transmit char and transmit command into TRANSM_FIELD */
-        devRegArea->devreg[index].t_transm_command = ((unsigned int) *(virtualAddress + i) << TERMINALSHIFT) | TRANSMITCHAR;
+        devRegArea->devreg[index].t_transm_command = ((char) *(virtualAddress + i) << TERMINALSHIFT) | TRANSMITCHAR;
 
         /* Block until the terminal operation completes */
         status = SYSCALL(SYS5CALL, TERMINT, deviceNum, FALSE);
@@ -264,7 +264,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
-    unsigned int virtualAddress;        /* Virtual address of a string buffer where the data read should be placed */
+    char virtualAddress;        /* Virtual address of a string buffer where the data read should be placed */
     int deviceNum;                      /* Device number (derived from the support struct's ASID) */
     int index;                          /* Index into the device register array and semaphore array */
     unsigned int status;                /* Variable to hold the device status returned by SYS5 */
@@ -310,7 +310,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     readLength = 0;
 
     /* Loop until reach EOL ("\n") character or error signal from the terminal  */
-    unsigned int currentChar;                       /* Char just read from the terminal */
+    char currentChar;                       /* Char just read from the terminal */
     int deviceStatus = CHARRECEIVED;        /* Initial state for device status  */
     while ((deviceStatus == CHARRECEIVED) || (currentChar != EOL)) {
         /* Disable interrupts so that COMMAND + SYS5 is atomic */
@@ -403,20 +403,25 @@ void syscallHandler(state_PTR savedState, support_t *currentSupportStruct) {
 
     /* Dispatch the SYSCALL based on sysNum */
     switch (sysNum) {
+        case SYS9CALL:
         /* SYS9 */
-        terminateUserProcess();
+            terminateUserProcess();
 
+        case SYS10CALL:
         /* SYS10: Get TOD */
-        getTOD(savedState, currentSupportStruct);
+            getTOD(savedState, currentSupportStruct);
 
-        /* SYS11: Write to Printer */
-        writeToPrinter(savedState, currentSupportStruct);
-        
-        /* SYS12 */
-        writeToTerminal(savedState, currentSupportStruct);
+        case SYS11CALL:
+            /* SYS11: Write to Printer */
+            writeToPrinter(savedState, currentSupportStruct);
+            
+        case SYS12CALL:
+            /* SYS12 */
+            writeToTerminal(savedState, currentSupportStruct);
 
-        /* SYS13 */
-        readFromTerminal(savedState, currentSupportStruct);
+        case SYS13CALL:
+            /* SYS13 */
+            readFromTerminal(savedState, currentSupportStruct);
     }
 }
 
