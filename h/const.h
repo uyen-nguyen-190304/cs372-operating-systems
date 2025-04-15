@@ -239,7 +239,7 @@
 #define ASIDSHIFT   6       /* ASID shift for the process ID */
 #define VPNSTART 0x80000        /* Virtual Page Number start address */
 #define STACKPAGEVPN 0xBFFFFFFF /* Stack page Virtual Page Number */
-
+#define SUCCESS             1   
 
 
 #endif  /* CONSTS */
