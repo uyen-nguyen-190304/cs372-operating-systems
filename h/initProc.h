@@ -14,7 +14,6 @@
 #include "../h/types.h"
 
 extern int masterSemaphores;                   /* Semaphore for synchronization */
-extern int deviceSemaphores[MAXDEVICES];       /* Semaphore for each device */
 
 extern void test();                            /* Instantiator process function */
 
