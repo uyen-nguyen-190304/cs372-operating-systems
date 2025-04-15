@@ -82,8 +82,8 @@ void test() {
         supportStructArray[pid].sup_asid = pid;
 
         /* Set the two PC fields: one to TLB handler, one to general exception handler */
-        supportStructArray[pid].sup_exceptContext[PGFAULTEXCEPT].c_pc = (memaddr) TLBHandlerAddress;
-        supportStructArray[pid].sup_exceptContext[GENERALEXCEPT].c_pc = (memaddr) GeneralExceptionHandlerAddress;
+        supportStructArray[pid].sup_exceptContext[PGFAULTEXCEPT].c_pc = (memaddr) uTLB_RefillHandler;
+        supportStructArray[pid].sup_exceptContext[GENERALEXCEPT].c_pc = (memaddr) generalExceptionHandler;
 
         /* Set the two Status registers: kernel-mode with all interrupts and Processor Local Timer enabled */
         supportStructArray[pid].sup_exceptContext[PGFAULTEXCEPT].c_status = ALLOFF | IEPON | PLTON | IMON;
