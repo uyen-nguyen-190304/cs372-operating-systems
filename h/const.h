@@ -170,9 +170,10 @@
 #define SYS7CALL            7                   /* wait for clock */
 #define SYS8CALL            8                   /* get support data */
 #define SYS9CALL            9                   /* terminate user process */
-#define SYS10CALL           10                  /* write to printer */
-#define SYS11CALL           11                  /* write to terminal */
-#define SYS12CALL           12                  /* read from terminal */
+#define SYS10CALL           10                  /* get TOD */
+#define SYS11CALL           11                  /* write to printer */
+#define SYS12CALL           12                  /* write to terminal */
+#define SYS13CALL           13                  /* read from terminal */
 
 /******************************* Exception Handling Constants *****************************/
 

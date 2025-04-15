@@ -117,7 +117,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
         setSTATUS(getSTATUS() & IECOFF);
 
         /* Write the character to DATA0, issue the transmit command in COMMAND */
-        devRegArea->devreg[index].d_data0 = (char) *(virtualAddress + i);
+        devRegArea->devreg[index].d_data0 = *(virtualAddress + i);
         devRegArea->devreg[index].d_command = PRINTCHR;
 
         /* Block until the printer operation completes */
@@ -216,7 +216,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
         setSTATUS(getSTATUS() & IECOFF);
 
         /* Place the transmit char and transmit command into TRANSM_FIELD */
-        devRegArea->devreg[index].t_transm_command = ((char) *(virtualAddress + i) << TERMINALSHIFT) | TRANSMITCHAR;
+        devRegArea->devreg[index].t_transm_command = (*(virtualAddress + i) << TERMINALSHIFT) | TRANSMITCHAR;
 
         /* Block until the terminal operation completes */
         status = SYSCALL(SYS5CALL, TERMINT, deviceNum, FALSE);
@@ -310,7 +310,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     readLength = 0;
 
     /* Loop until reach EOL ("\n") character or error signal from the terminal  */
-    char currentChar;                       /* Char just read from the terminal */
+    int currentChar;                       /* Char just read from the terminal */
     int deviceStatus = CHARRECEIVED;        /* Initial state for device status  */
     while ((deviceStatus == CHARRECEIVED) || (currentChar != EOL)) {
         /* Disable interrupts so that COMMAND + SYS5 is atomic */
