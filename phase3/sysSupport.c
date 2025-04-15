@@ -43,7 +43,7 @@ void terminateUserProcess(void) {
 /*
  ! SYS10: getTOD
  */
-void getTOD(state_PTR savedState, *currentSupportStruct) {
+void getTOD(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 1. Get the number of microseconds since system was last booted/reset
     *---------------------------------------------------------------*/
@@ -117,11 +117,11 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
         setSTATUS(getSTATUS() & IECOFF);
 
         /* Write the character to DATA0, issue the transmit command in COMMAND */
-        devRegArea->devreg[index].d_data0 = (char) *(virtualAddress + i);
+        devRegArea->devreg[index].d_data0 = (unsigned int) *(virtualAddress + i);
         devRegArea->devreg[index].d_command = PRINTCHR;
 
         /* Block until the printer operation completes */
-        status = SYSCALL(SYS5CALL, PRNTINT, pid, FALSE);
+        status = SYSCALL(SYS5CALL, PRNTINT, deviceNum, FALSE);
 
         /* Re-enable interrupts now that the atomic operation is complete */
         setSTATUS(getSTATUS() | IECON);
@@ -144,7 +144,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 6. On success: return the number of characters transmitted
     *---------------------------------------------------------------*/
-    savedState->v0 = stringLength;
+    savedState->s_v0 = stringLength;
 
     /*--------------------------------------------------------------*
     * 7. Release device semaphore
@@ -154,7 +154,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 8. Return control to the instruction after SYSCALL instruction
     *---------------------------------------------------------------*/
-    LDST(savedState)
+    LDST(savedState);
 }
 
 
@@ -211,15 +211,15 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     * 5. Transmit each character to the terminal
     *---------------------------------------------------------------*/
     int i;
-    for (i = 0; i < stringLength, i++) {
+    for (i = 0; i < stringLength; i++) {
         /* Disable interrupt so that COMMAND + SYS5 is atomic */
         setSTATUS(getSTATUS() & IECOFF);
 
         /* Place the transmit char and transmit command into TRANSM_FIELD */
-        devRegArea->devreg[index].t_transm_command = ((char) *(virtualAddress + i) << TERMINALSHIFT) | TRANSMITCHAR;
+        devRegArea->devreg[index].t_transm_command = ((unsigned int) *(virtualAddress + i) << TERMINALSHIFT) | TRANSMITCHAR;
 
         /* Block until the terminal operation completes */
-        status = SYSCALL(SYS5CALL, TERMINT, pid, FALSE);
+        status = SYSCALL(SYS5CALL, TERMINT, deviceNum, FALSE);
 
         /* Re-enable interrupts now that the atomic operation is complete */
         setSTATUS(getSTATUS() | IECON);
@@ -310,7 +310,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     readLength = 0;
 
     /* Loop until reach EOL ("\n") character or error signal from the terminal  */
-    char currentChar;                       /* Char just read from the terminal */
+    unsigned int currentChar;                       /* Char just read from the terminal */
     int deviceStatus = CHARRECEIVED;        /* Initial state for device status  */
     while ((deviceStatus == CHARRECEIVED) || (currentChar != EOL)) {
         /* Disable interrupts so that COMMAND + SYS5 is atomic */
@@ -320,7 +320,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
         devRegArea->devreg[index].t_recv_command = RECEIVECHAR;
 
         /* Block until the terminal operation completes */
-        status = SYSCALL(SYS5CALL, TERMINT, pid, TRUE);
+        status = SYSCALL(SYS5CALL, TERMINT, deviceNum, TRUE);
 
         /* Re-enable interrupts now that the atomic operation is complete */
         setSTATUS(getSTATUS() | IECON);
@@ -369,18 +369,18 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
 }
 
 
-void generalExceptionHandler() {
+void generalExceptionHandler(void) {
     /* Get the support structure */
     support_t *currentSupportStruct;
     currentSupportStruct = (support_t *) SYSCALL(SYS8CALL, 0, 0, 0);
 
     /* Retrieve processor state at time of exception */
-    state_PTR savedExceptionState;
-    savedExceptionState = &(currentSupportStruct->sup_exceptState[GENERALEXCEPT]);
+    state_PTR savedState;
+    savedState = &(currentSupportStruct->sup_exceptState[GENERALEXCEPT]);
 
     /* Check for the cause of the exception */
     int exceptionCode;
-    exceptionCode = ((savedExceptionState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;
+    exceptionCode = ((savedState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;
 
     /* Pass control to the correct exception handler */
     if (exceptionCode == SYS8CALL) {
@@ -404,19 +404,19 @@ void syscallHandler(state_PTR savedState, support_t *currentSupportStruct) {
     /* Dispatch the SYSCALL based on sysNum */
     switch (sysNum) {
         /* SYS9 */
-        terminateUserProcess(void);
+        terminateUserProcess();
 
         /* SYS10: Get TOD */
-        getTOD(currentSupportStruct);
+        getTOD(savedState, currentSupportStruct);
 
         /* SYS11: Write to Printer */
-        writeToPrinter(currentSupportStruct);
+        writeToPrinter(savedState, currentSupportStruct);
         
         /* SYS12 */
-        writeToTerminal(currentSupportStruct);
+        writeToTerminal(savedState, currentSupportStruct);
 
         /* SYS13 */
-        readFromTerminal(currentSupportStruct);
+        readFromTerminal(savedState, currentSupportStruct);
     }
 }
 
