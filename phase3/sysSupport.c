@@ -68,7 +68,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
-    char virtualAddress;                /* Virtual address in the U-proc's address space where the string begins */
+    char *virtualAddress;                /* Virtual address in the U-proc's address space where the string begins */
     int stringLength;                   /* Length of the string to print */
     int deviceNum;                      /* Device number (derived from the support struct's ASID) */
     int index;                          /* Index into the device register array and semaphore array */
@@ -79,8 +79,8 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     * 1. Retrieve the SYSCALL parameters from the support structure
     *---------------------------------------------------------------*/
     /* Extract the virtual address from register a1 and string length from a2 */
-    virtualAddress = savedState->s_a1;
-    stringLength = savedState->s_a2;
+    virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
+    stringLength = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
 
     /*--------------------------------------------------------------*
     * 2. Check if the parameters are valid
@@ -166,7 +166,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
-    char virtualAddress;            /* Virtual address in the U-proc's address space where the string begins */
+    char *virtualAddress;            /* Virtual address in the U-proc's address space where the string begins */
     int stringLength;               /* Length of the string to print */
     int deviceNum;                  /* Device number (derived from the support struct's ASID) */                       
     int index;                      /* Index into the device register array and semaphore array */
@@ -177,8 +177,8 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     * 1. Retrieve the SYSCALL parameters from the support structure
     *---------------------------------------------------------------*/
     /* Extract the virtual address from register a1 and string length from a2 */
-    virtualAddress = savedState->s_a1;
-    stringLength = savedState->s_a2;
+    virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
+    stringLength = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
 
     /*--------------------------------------------------------------*
     * 2. Check if the parameters are valid
@@ -264,7 +264,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
-    char virtualAddress;        /* Virtual address of a string buffer where the data read should be placed */
+    char *virtualAddress;        /* Virtual address of a string buffer where the data read should be placed */
     int deviceNum;                      /* Device number (derived from the support struct's ASID) */
     int index;                          /* Index into the device register array and semaphore array */
     unsigned int status;                /* Variable to hold the device status returned by SYS5 */
@@ -275,7 +275,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     * 1. Retrieve the SYSCALL parameter from the support structure
     *---------------------------------------------------------------*/
     /* Extract the virtual address from register a1 */
-    virtualAddress = savedState->s_a1;
+    virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
 
     /*--------------------------------------------------------------*
     * 2. Check if the parameters are valid
