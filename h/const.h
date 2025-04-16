@@ -5,13 +5,15 @@
  *
  * This header file contains utility constants and macro definitions used
  * throughout the Pandos kernel. It includes:
- *  - Hardware & software constants
- *  - Processor status flags
- *  - Exception codes
- *  - Timer & memory constants
- *  - SYSCALL code
- *  - Device interrupt and register definition
- *  - Helper macros for operations and memory alignment
+ *  - Hardware & software constants (page size, word length, device counts)
+ *  - Processor-status register flags
+ *  - Exception & interrupt codes
+ *  - Timer, memory & address‐space layout constants
+ *  - SYSCALL number
+ *  - Device interrupt lines & register definitions
+ *  - Utility macros (MIN, MAX, ALIGNED, etc.)
+ * 
+ * Last updated: 2025/04/16
  * 
  ****************************************************************************/
 
@@ -208,44 +210,58 @@
 /* Macro to read the TOD clock */
 #define STCK(T) ((T) = ((* ((cpu_t *) TODLOADDR)) / (* ((cpu_t *) TIMESCALEADDR))))
 
-/******************************* Mess to place somewhere *****************************/
+/******************************* Paging & Virtual Memory Constants *****************************/
 
-#define SWAPPOOLSTART       0x20020000          /* Swap Pool's starting address */
-#define SWAPPOOLSIZE        2 * UPROCMAX        /* Swap Pool size */
-#define EMPTYFRAME         -1                   /* Empty frame in the Swap Pool */
+#define NUMPAGES            32                  /* pages per process private page table */
+#define VPNMASK             0xFFFFF000           /* virtual page number mask */
+#define VPNSHIFT            12                  /* virtual page number shift */
+#define TLBMODIFICATION     1                    /* TLB modification exception code */
 
-#define NUMPAGES            32                  /* Number of pages in the process's private page table */
-#define VPNMASK             0xFFFFF000          /* Virtual Page Number mask */
-#define VPNSHIFT            12                  /* Virtual Page Number shift */
-#define TLBMODIFICATION     1                   /* TLB modification exception code */
-#define UPROCMAX            8                   /* Number of U-procs to be concurrently executed */
-#define MAXSTRINGLENGTH     128                 /* Maximum string length for terminal I/O */
-#define STATUSMASK          0xFF                /* Status mask for device status */
-#define DEVICEREADY        1                    /* Device ready status for printer */
-#define UPROCTEXTSTART     0x80000000          /* U-proc's text segment start address */
+/* User Process Configuration */
+#define UPROCMAX            8                   /* max concurrent user processes */
+#define UPROCTEXTSTART      0x80000000          /* start address of user text segment */
+#define USERSTACKTOP        0xC0000000          /* user stack top address */
+#define ASIDSHIFT           6                   /* address space identifier shift */
 
-#define RECEIVECHAR       2              /* Receive the character from the line */
-#define TRANSMITCHAR        2              /* Transmit the character over the line */
-#define TERMINALSHIFT       8                 /* Shift for terminal device register */  
-#define PRINTCHR            2                   /* Transmit the character in DATA0 over the line */
-#define CHARTRANSMITTED     5           /* Character transmitted status for printer */
-#define CHARRECEIVED        5           /* Character received status for terminal */
-#define EOL                 0x0A            /* End of line character */
-#define CHARRECEIVEDSHIFT    8           /* Shift for character received status */
+/* Virtual Page Number Boundaries */
+#define VPNSTART            0x00080000          /* virtual page number start address */
+#define STACKPAGEVPN        0xBFFFFFFF          /* virtual page number for user stack */
 
-#define FLASHREAD           1             /* Flash read command */
-#define FLASHWRITE          2             /* Flash write command */
+/******************************* I/O & Device Constants *****************************/
 
-#define BLOCKSHIFT          8           /* Block shift for flash device */
-#define READBLK             2         /* Read block command */
-#define WRITEBLK            3         /* Write block command */
+#define MAXIODEVICES        48                  /* max external I/O devices */
+#define STATUSMASK          0xFF                /* mask for device status field */
+#define DEVICEREADY         1                   /* device ready status (printer) */
 
-#define USERSTACKTOP          0xC0000000          /* User stack top address */
-#define ASIDSHIFT   6       /* ASID shift for the process ID */
-#define VPNSTART 0x80000        /* Virtual Page Number start address */
-#define STACKPAGEVPN 0xBFFFFFFF /* Stack page Virtual Page Number */
-#define SUCCESS             1   
+/* Terminal I/O */
+#define RECEIVECHAR         2                   /* receive character from terminal */
+#define TRANSMITCHAR        2                   /* transmit character to terminal */
+#define TERMINALSHIFT       8                   /* shift for terminal register */
+#define PRINTCHR            2                   /* print character via DATA0 */
+#define CHARTRANSMITTED     5                   /* transmitter status: char transmitted */
+#define CHARRECEIVED        5                   /* receiver status: char received */
+#define CHARRECEIVEDSHIFT   8                   /* shift for char received status */
+#define EOL                 0x0A                /* end-of-line character */
 
-#define MAXIODEVICES    48
+/* Flash Device I/O */
+#define FLASHREAD           1                   /* flash read command */
+#define FLASHWRITE          2                   /* flash write command */
+#define BLOCKSHIFT          8                   /* shift for flash block operations */
+#define READBLK             2                   /* flash read block command */
+#define WRITEBLK            3                   /* flash write block command */
+
+/******************************* Swap Pool Constants *****************************/
+
+#define SWAPPOOLSTART       0x20020000          /* swap pool's starting address */
+#define SWAPPOOLSIZE        2 * UPROCMAX        /* swap pool's size (frames) */
+#define EMPTYFRAME          -1                  /* indicator of empty frame in swap pool */
+
+/******************************* Miscellaneous Constants *****************************/
+
+#define MAXSTRINGLENGTH     128                 /* max length for terminal I/O strings */
+#define SUCCESS             1                   /* general success indicator */
+
+
+
 
 #endif  /* CONSTS */
