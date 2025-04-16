@@ -246,5 +246,6 @@
 #define STACKPAGEVPN 0xBFFFFFFF /* Stack page Virtual Page Number */
 #define SUCCESS             1   
 
+#define MAXIODEVICES    48
 
 #endif  /* CONSTS */

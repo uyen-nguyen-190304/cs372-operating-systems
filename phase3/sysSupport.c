@@ -369,7 +369,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
 }
 
 
-void generalExceptionHandler(void) {
+void VMgeneralExceptionHandler(void) {
     /* Get the support structure */
     support_t *currentSupportStruct;
     currentSupportStruct = (support_t *) SYSCALL(SYS8CALL, 0, 0, 0);
@@ -385,15 +385,15 @@ void generalExceptionHandler(void) {
     /* Pass control to the correct exception handler */
     if (exceptionCode == SYS8CALL) {
         /* Pass control to Support Level's SYSCALL exception handler */
-        syscallHandler(savedState, currentSupportStruct);
+        VMsyscallExceptionHandler(savedState, currentSupportStruct);
     } else {
         /* Pass control to Support Level's Program Trap exception handler */
-        programTrapExceptionHandler();
+        VMprogramTrapExceptionHandler();
     }
 }
 
 
-void syscallHandler(state_PTR savedState, support_t *currentSupportStruct) {
+void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportStruct) {
     /* Get the syscall number */
     unsigned int sysNum;
     sysNum = savedState->s_a0;
@@ -426,7 +426,7 @@ void syscallHandler(state_PTR savedState, support_t *currentSupportStruct) {
 }
 
 
-void programTrapExceptionHandler() {
+void VMprogramTrapExceptionHandler() {
     /* Terminate the process in an orderly fashion - SYS9 request */
     terminateUserProcess();
 }

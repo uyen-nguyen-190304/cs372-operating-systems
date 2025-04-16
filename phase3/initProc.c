@@ -26,7 +26,7 @@
 /**************************** SUPPORT LEVEL GLOBAL VARIABLES ****************************/ 
 
 int masterSemaphores;                   /* Semaphore for synchronization */
-int deviceSemaphores[MAXDEVICES];       /* Semaphore for each device */
+int devSemaphores[MAXIODEVICES];        /* Semaphore for mutual exclusion */
 
 /******************************* EXTERNAL ELEMENTS *******************************/
 
@@ -46,7 +46,7 @@ void test() {
     /* Initialize the semaphore of each (potentially) sharable peripheral I/O device */
     int i;
     for (i = 0; i < MAXDEVICES; i++) {
-        deviceSemaphores[i] = 1;                        /* For mutual exclusion */
+        devSemaphores[i] = 1;                        /* For mutual exclusion */
     }
 
     /* Initialize the masterSemaphore */
@@ -83,7 +83,7 @@ void test() {
 
         /* Set the two PC fields: one to TLB handler, one to general exception handler */
         supportStructArray[pid].sup_exceptContext[PGFAULTEXCEPT].c_pc = (memaddr) uTLB_RefillHandler;
-        supportStructArray[pid].sup_exceptContext[GENERALEXCEPT].c_pc = (memaddr) generalExceptionHandler;
+        supportStructArray[pid].sup_exceptContext[GENERALEXCEPT].c_pc = (memaddr) VMgeneralExceptionHandler;
 
         /* Set the two Status registers: kernel-mode with all interrupts and Processor Local Timer enabled */
         supportStructArray[pid].sup_exceptContext[PGFAULTEXCEPT].c_status = ALLOFF | IEPON | PLTON | IMON;
