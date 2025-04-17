@@ -22,7 +22,7 @@
 /******************************* FUNCTION DECLARATION *******************************/ 
 
 HIDDEN void terminateUserProcess(void);                                               /* SYS9 */
-HIDDEN void getTOD(state_PTR savedState, support_t *currentSupportStruct);            /* SYS10 */
+HIDDEN void getTOD(state_PTR savedState);            /* SYS10 */
 HIDDEN void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct);    /* SYS11 */
 HIDDEN void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct);   /* SYS12 */
 HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct);  /* SYS13 */
@@ -34,7 +34,7 @@ HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStru
  */
 void terminateUserProcess(void) {
     /* Release the master semaphore (V operation) */
-    SYSCALL(SYS4CALL, (unsigned int) &masterSemaphores, 0, 0); 
+    SYSCALL(SYS4CALL, (unsigned int) &masterSemaphore, 0, 0); 
 
     /* Invoke SYS2 to terminate this process */
     SYSCALL(SYS2CALL, 0, 0, 0);     /* This should never return back here */   
@@ -43,7 +43,7 @@ void terminateUserProcess(void) {
 /*
  ! SYS10: getTOD
  */
-void getTOD(state_PTR savedState, support_t *currentSupportStruct) {
+void getTOD(state_PTR savedState) {
     /*--------------------------------------------------------------*
     * 1. Get the number of microseconds since system was last booted/reset
     *---------------------------------------------------------------*/
@@ -296,7 +296,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     deviceNum = currentSupportStruct->sup_asid - 1;                /* Subtract 1 to get an index 0..7 */
 
     /* Compute the index into the device register array */
-    index = ((PRNTINT - OFFSET) * DEVPERINT) + deviceNum;            
+    index = ((TERMINT - OFFSET) * DEVPERINT) + deviceNum;            
 
     /*--------------------------------------------------------------*
     * 4. Gain mutual exclusion over the device 
@@ -311,8 +311,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
 
     /* Loop until reach EOL ("\n") character or error signal from the terminal  */
     int currentChar;                       /* Char just read from the terminal */
-    int deviceStatus = CHARRECEIVED;        /* Initial state for device status  */
-    while ((deviceStatus == CHARRECEIVED) || (currentChar != EOL)) {
+   do {
         /* Disable interrupts so that COMMAND + SYS5 is atomic */
         setSTATUS(getSTATUS() & IECOFF);
 
@@ -327,8 +326,9 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
 
         /* Mask off low byte to get status code from device status */
         statusCode = status & STATUSMASK;
-        /* Check if the receiver of the terminal reports a "Character Received" status (5) */
-        if (statusCode != CHARRECEIVED) {
+
+         /* Check if the receiver of the terminal reports a "Character Received" status (5) */
+         if (statusCode != CHARRECEIVED) {
             /* If not, set v0 to the negative of the status code to signal an error */
             savedState->s_v0 = -1 * statusCode;
 
@@ -339,7 +339,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
             LDST(savedState);
         } else {
             /* Read the character received */
-            currentChar = (char) statusCode >> CHARRECEIVEDSHIFT;
+            currentChar = (char) ((status >> CHARRECEIVEDSHIFT) & CHARRECEIVEDMASK);
 
             /* Check if the character is EOL */
             if (currentChar != EOL) {
@@ -350,7 +350,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
                 readLength++;
             }
         }
-    }
+   } while (currentChar != EOL);
 
     /*--------------------------------------------------------------*
     * 6. On success: return the number of characters received
@@ -406,22 +406,31 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
         case SYS9CALL:
         /* SYS9 */
             terminateUserProcess();
+            break;
 
         case SYS10CALL:
         /* SYS10: Get TOD */
-            getTOD(savedState, currentSupportStruct);
+            getTOD(savedState);
+            break;
 
         case SYS11CALL:
             /* SYS11: Write to Printer */
             writeToPrinter(savedState, currentSupportStruct);
+            break;
             
         case SYS12CALL:
             /* SYS12 */
             writeToTerminal(savedState, currentSupportStruct);
+            break;
 
         case SYS13CALL:
             /* SYS13 */
             readFromTerminal(savedState, currentSupportStruct);
+            break;
+
+        default:
+            VMprogramTrapExceptionHandler();
+            break;
     }
 }
 

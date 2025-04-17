@@ -25,7 +25,7 @@
 
 /**************************** SUPPORT LEVEL GLOBAL VARIABLES ****************************/ 
 
-int masterSemaphores;                   /* Semaphore for synchronization */
+int masterSemaphore;                    /* Semaphore for synchronization */
 int devSemaphores[MAXIODEVICES];        /* Semaphore for mutual exclusion */
 
 /******************************* EXTERNAL ELEMENTS *******************************/
@@ -35,7 +35,7 @@ void test() {
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
     int pid;                                            /* Process ID */
-    static support_t supportStructArray[UPROCMAX];      /* Array of support structures for U-procs */
+    static support_t supportStructArray[UPROCMAX + 1];      /* Array of support structures for U-procs */
 
     /*--------------------------------------------------------------*
      * 1. Initialize Phase 3 Data Structure 
@@ -50,7 +50,7 @@ void test() {
     }
 
     /* Initialize the masterSemaphore */
-    masterSemaphores = 0;                               /* For synchronization */
+    masterSemaphore = 0;                               /* For synchronization */
 
     /*--------------------------------------------------------------*
     * 2. Initialize and Launch (SYS1) between 1-8 U-Procs
@@ -116,7 +116,7 @@ void test() {
     *---------------------------------------------------------------*/
     int k;
     for (k = 0; k < UPROCMAX; k++) {
-        SYSCALL(SYS3CALL, (unsigned int) &masterSemaphores, 0, 0); /* P operation */
+        SYSCALL(SYS3CALL, (unsigned int) &masterSemaphore, 0, 0); /* P operation */
     }
 }
 
