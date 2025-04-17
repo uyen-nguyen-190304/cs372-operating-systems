@@ -1,7 +1,7 @@
 /******************************* VMSUPPORT.c ***************************************
  * 
  * Written by  : Uyen Nguyen
- * Last update : 2025/04/13
+ * Last update : 2025/04/17
  * 
  ***********************************************************************************/
 
@@ -24,67 +24,6 @@ int swapPoolSemaphore;                          /* Semaphore for the Swap Pool T
 swap_t swapPoolTable[SWAPPOOLSIZE];             /* THE Swap Pool Table: one entry per swap pool frame */
 
 /************************* GLOBAL VARIABLES INITIALIZATION *************************/
-
-
-void debug1(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug2(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug3(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug4(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug5(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug6(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug7(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug8(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug9(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug10(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
 
 void initSwapStructs() {
     /* Initialize the Swap Pool Semaphore to 1 (mutual exclusion) */
@@ -155,7 +94,7 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
     devRegArea->devreg[index].d_data0 = frameAddress;
 
     /* If the operation requested is a READ operation */
-    if (operation == FLASHREAD) {
+    if (operation == READBLK) {
         /* Set the device's command register to READ and put in the block number */
         devRegArea->devreg[index].d_command = (pageNumber << BLOCKSHIFT) | READBLK;
     } else {
@@ -182,26 +121,65 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
 
 /************************* PAGE REPLACEMENT ALGORITHM *************************/
 
-/* 
-    int pageReplacement() {
-        static int hand = 0;
-        int victim = -1;
+/*
+ * Function     :   pageReplacement (first free, then round-robin) 
+ */
+int pageReplacement() {
+    /* Static hand pointer to remember where we left off last time */
+    static int hand = 0;
+    
+    /* Initialize a victim variable - act as a return frame index */
+    int victim = -1;
 
-        int i;
-        for (i = 0; i < SWAPPOOLSIZE; i++) {
-            int index = (hand + i) % SWAPPOOLSIZE;
-            if (swapPoolTable[index].asid == EMPTYFRAME) {
-                victim = index;
-                hand = (index + 1) % SWAPPOOLSIZE;
-                return victim;
-            }
+    /* First, scan through the entire Swap Pool for a free frame */
+    int i;
+    for (i = 0; i < SWAPPOOLSIZE; i++) {
+        /* Compute the candidate index (wrap around via modulo) */
+        int index = (hand + i) % SWAPPOOLSIZE;
+
+        /* If we found a free frame */
+        if (swapPoolTable[index].asid == EMPTYFRAME) {
+            /* Choose it (why not?) */
+            victim = index;
+
+            /* Advance hand to the slot after the one we just took */
+            hand = (index + 1) % SWAPPOOLSIZE;
+
+            /* Return the index to the free frame in the Swap Pool we just found */
+            return victim;
         }
-
-        victim = hand;
-        hand = (hand + 1) % SWAPPOOLSIZE;
-        return victim;
     }
-*/
+
+    /* Here, no free frame was found. Then, we'll evict the frame at hand */
+    victim = hand;
+
+    /* Advance hand for next round (round-robin) */
+    hand = (hand + 1) % SWAPPOOLSIZE;
+
+    /* Return the index into swapPoolTable of the chosen victim frame */
+    return victim;
+}
+
+
+/************************* TLB UPDATE FUNCTION *************************/
+
+void updateTLB(pte_t *ptEntry) {
+    /* Load the VPN into the TLB's ENTRYHI register */
+    setENTRYHI(ptEntry->pt_entryHI);
+
+    /* Probe the TLB for an existing entry matching ENTRYHI */
+    TLBP();       
+
+    /* Test the INDEX register’s invalid bit: if it's 0, we found a valid entry */
+    if ((getINDEX() & INDEXMASK) == 0) {
+        /* Then, load the physical frame mapping + flags into ENTRYLO */
+        setENTRYLO(ptEntry->pt_entryLO);
+
+        /* Also, write the updated TLB entry back at the probed index */
+        TLBWI();
+    }
+    /* If no match was found, leave the TLB unchange */
+}
 
 /******************************* PAGER FUNCTION *******************************/
 
@@ -212,24 +190,22 @@ void pager() {
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
-    support_t   *currentSupportStruct;          /* Pointer to the Current Process's support structure */
-    state_t     *savedState;                    /* Pointer to the saved exception state responsible for the TLB exception */
     int         exceptionCode;                  /* Exception code for the TLB exception */
     int         missingPageNo;                  /* Page number of the missing TLB entry */
+    int         frameNumber;                    /* Frame number of the page to be swapped in */
     int         frameAddress;                   /* Frame address of the page to be swapped in */
     int         status1, status2;               /* Status codes for the flash device operations */ 
-    HIDDEN int frameNumber;
 
     /*--------------------------------------------------------------*
     * 1. Obtain the pointer to the Current Process's Support Structure
     *---------------------------------------------------------------*/
-   currentSupportStruct = (support_t *) SYSCALL(SYS8CALL, 0, 0, 0);
+    support_t *currentSupportStruct = (support_t *) SYSCALL(SYS8CALL, 0, 0, 0);
 
     /*--------------------------------------------------------------*
     * 2. Determine the case of the TLB exception
     *---------------------------------------------------------------*/    
     /* Get the saved exception state in Current Process's Support Structure for TLB exception */
-    savedState = &(currentSupportStruct->sup_exceptState[PGFAULTEXCEPT]);
+    state_t *savedState = &(currentSupportStruct->sup_exceptState[PGFAULTEXCEPT]);
 
     /* Extract the exception code from the saved exception state */
     exceptionCode = ((savedState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;
@@ -251,20 +227,16 @@ void pager() {
     *---------------------------------------------------------------*/ 
     missingPageNo = ((savedState->s_entryHI) & VPNMASK) >> VPNSHIFT;
     missingPageNo = missingPageNo % NUMPAGES;   /* Ensure the page number is within bounds */
-    debug1(0,0,0,0);
 
     /*--------------------------------------------------------------*
     * 6. Pick a frame from the Swap Pool
     *---------------------------------------------------------------*/ 
     /* Frame is chosen by the page replacement algorithm provided above */
-    /*frameNumber  = pageReplacement();                         */
-    frameNumber = (frameNumber + 1) % SWAPPOOLSIZE;
+    frameNumber  = pageReplacement();                         
 
     /* Calculate the frame address */
     frameAddress = (frameNumber * PAGESIZE) + SWAPPOOLSTART;    
     
-    debug2(0,0,0,0);
-
     /*--------------------------------------------------------------*
     * 7. Determine if the frame is occupied
     *---------------------------------------------------------------*/ 
@@ -279,20 +251,21 @@ void pager() {
         /* a. Update process's Page Table: mark Page Table entry as not valid */
         swapPoolTable[frameNumber].pte->pt_entryLO &= VALIDOFF;
 
-        /* b. Erase all the entries in the TLB */
-        TLBCLR();               
+        /* b. Update the TLB */
+        updateTLB(swapPoolTable[frameNumber].pte);      
 
         /* NOTE: Enable interrupt again, end of atomically steps (a & b) */
         setInterrupt(TRUE); 
 
         /* c. Update process's backing store */
-        status1 = flashDeviceOperation(FLASHWRITE, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
-
-        debug3(0,0,0,0);
+        status1 = flashDeviceOperation(WRITEBLK, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
 
         /* Treat any error status from the write operation as a program trap */
         if (status1 != SUCCESS) {
+            /* Release the swapPoolSemaphore since it will get nuked next step anw */
             mutex(&swapPoolSemaphore, FALSE);
+
+            /* Terminate the current process */
             VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
         }
     }
@@ -300,9 +273,7 @@ void pager() {
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
-    status2 = flashDeviceOperation(FLASHREAD, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
-
-    debug4(0,0,0,0);
+    status2 = flashDeviceOperation(READBLK, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
 
     /* Treat any error status from the read operation as a program trap */
     if (status2 != SUCCESS) {
@@ -317,26 +288,20 @@ void pager() {
     swapPoolTable[frameNumber].asid = currentSupportStruct->sup_asid;
     swapPoolTable[frameNumber].pte  = &(currentSupportStruct->sup_privatePgTbl[missingPageNo]);
 
-    debug5(0,0,0,0);
-
-    /* NOTE: Disable interrupt to perform step 11 & 12 atomically */
-    setInterrupt(FALSE);
-
     /*--------------------------------------------------------------*
     * 11. Update the Current Process's Page Table entry 
     *---------------------------------------------------------------*/ 
+    /* NOTE: Disable interrupt to perform step 11 & 12 atomically */
+    setInterrupt(FALSE);
+
     /* Page missingPageNo is now present (V bit) and occupying frame frameAddress */
     currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = frameAddress | VALIDON | DIRTYON;
 
-    debug6(0,0,0,0);
-
     /*--------------------------------------------------------------*
-    * 12. Update the TLB - Erase all entries in the TLB
+    * 12. Update the TLB
     *---------------------------------------------------------------*/ 
-    TLBCLR();   
+    updateTLB(&(currentSupportStruct->sup_privatePgTbl[missingPageNo]));
     
-    debug7(0,0,0,0);
-
     /* NOTE: Enable interrupt again, end of atomically step (11 & 12) */
     setInterrupt(TRUE);
 
@@ -344,8 +309,6 @@ void pager() {
     * 13. Release mutual exclusion over the Swap Pool table
     *---------------------------------------------------------------*/ 
     mutex(&swapPoolSemaphore, FALSE);
-
-    debug8(0,0,0,0);
 
     /*--------------------------------------------------------------*
     * 14. Return control to the Current Process to retry the instruction that caused the page fault

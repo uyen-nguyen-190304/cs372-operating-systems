@@ -6,10 +6,6 @@
  * 
  ***********************************************************************************/
 
-/*
- ! NOTE: Implement allocate and deallocate (mentioned in the optimization part) 
- */
-
 #include "../h/const.h"
 #include "../h/types.h"
 #include "../h/pcb.h"
@@ -35,20 +31,20 @@ void test() {
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
-    int pid;                                            /* Process ID */
-    state_t initialState;                                       
-    static support_t supportStructArray[UPROCMAX + 1];      /* Array of support structures for U-procs */
+    int pid;                                                /* Process ID */
     int status;
+    state_t initialState;                                   /* Initial state for U-Prοc Initialization */    
+    static support_t supportStructArray[UPROCMAX + 1];      /* Array of support structures for U-procs */
 
-    /*--------------------------------------------------------------*
+    /* --------------------------------------------------------------
      * 1. Initialize Phase 3 Data Structure 
-    *---------------------------------------------------------------*/
+     * --------------------------------------------------------------- */
     /* Initialize Swap Pool semaphore & table */
     initSwapStructs();                                 
     
     /* Initialize the semaphore of each (potentially) sharable peripheral I/O device */
     int i;
-    for (i = 0; i < MAXDEVICES - 1; i++) {
+    for (i = 0; i < MAXIODEVICES; i++) {
         devSemaphores[i] = 1;                        /* For mutual exclusion */
     }
 
@@ -64,22 +60,19 @@ void test() {
     /* Set Status to user-mode with all interrupts and processor Local Timer Enable */
     initialState.s_status = ALLOFF | USERPON | IEPON | PLTON | IMON;
 
-    /*--------------------------------------------------------------*
-    * 2. Initialize and Launch (SYS1) between 1-8 U-Procs
-    *---------------------------------------------------------------*/
+    /* --------------------------------------------------------------
+     * 2. Initialize and Launch (SYS1) between 1-8 U-Procs
+     * --------------------------------------------------------------- */
     /* Loop for UPROCMAX U-Procs to set up the parameters for SYS1 and call SYS1 afterward */
     for (pid = 1; pid <= UPROCMAX; pid++) {
-        /*----------------------------------------------------------*
-        * a. Set up the initial processor state for the U-Proc
-        *-----------------------------------------------------------*/
-                       
+        /* ----------------------------------------------------------
+         * a. Set EntryHi.ASID to the process's unique ID
+         * ----------------------------------------------------------- */
+        initialState.s_entryHI = ALLOFF | KUSEG | (pid << ASIDSHIFT); 
 
-        /* Set EntryHi.ASID to the process's unique ID */
-        initialState.s_entryHI = ALLOFF | (pid << ASIDSHIFT); 
-
-        /*----------------------------------------------------------*
-        * b. Set up the support structure for the U-Proc
-        *-----------------------------------------------------------*/
+        /* ----------------------------------------------------------
+         * b. Set up the support structure for the U-Proc
+         * ----------------------------------------------------------- */
         /* Set sup_asid to the process's ASID */
         supportStructArray[pid].sup_asid = pid;
 
@@ -92,10 +85,12 @@ void test() {
         supportStructArray[pid].sup_exceptContext[GENERALEXCEPT].c_status = ALLOFF | IEPON | PLTON | IMON;
 
         /* Set the two SP fields: End of the two stack spaces allocated in Support Structure */
-        supportStructArray[pid].sup_exceptContext[PGFAULTEXCEPT].c_stackPtr = (memaddr) &(supportStructArray[pid].sup_stackTLB[499]);
-        supportStructArray[pid].sup_exceptContext[GENERALEXCEPT].c_stackPtr = (memaddr) &(supportStructArray[pid].sup_stackGen[499]);
+        supportStructArray[pid].sup_exceptContext[PGFAULTEXCEPT].c_stackPtr = (memaddr) &(supportStructArray[pid].sup_stackTLB[STACKTOP]);
+        supportStructArray[pid].sup_exceptContext[GENERALEXCEPT].c_stackPtr = (memaddr) &(supportStructArray[pid].sup_stackGen[STACKTOP]);
 
-        /* Initialize the per-process Page Table */
+        /* ----------------------------------------------------------
+         * c. Initialize the per-process Page Table
+         * ----------------------------------------------------------- */
         int j;
         for (j = 0; j < NUMPAGES; j++) {
             /* Set the VPN and ASID in EntryHI */
@@ -111,9 +106,10 @@ void test() {
         /*----------------------------------------------------------*
         * c. Call SYS1 to create the U-Proc
         *-----------------------------------------------------------*/
-        status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) &supportStructArray[pid], 0); 
+        status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) &(supportStructArray[pid]), 0); 
 
         if (status != CREATESUCCESS) {
+            /* SYS2 here since we yet to P the masterSemaphore */
             SYSCALL(SYS2CALL, 0, 0, 0);
         }
     }
@@ -125,8 +121,10 @@ void test() {
         SYSCALL(SYS3CALL, (unsigned int) &masterSemaphore, 0, 0); /* P operation */
     }
 
-    /* Terminate the instantiator process */
-    SYSCALL(SYS2CALL, 0, 0, 0);
+    /*--------------------------------------------------------------*
+    * 4. After the loop, test() concludes by issuing a SYS2 -> HALT
+    *---------------------------------------------------------------*/
+    SYSCALL(SYS2CALL, 0, 0, 0);         /* Farewell */
 }
 
 /******************************* END OF INITPROC.c *******************************/

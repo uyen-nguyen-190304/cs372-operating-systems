@@ -35,56 +35,30 @@ HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStru
 void terminateUserProcess(support_t *currentSupportStruct)
 {
     /* ---------------------------------------------------------- *
-     * 0.  Handy aliases
+     * 0.  Declare local variable
      * ---------------------------------------------------------- */
-    int asid   = currentSupportStruct->sup_asid;   /* 1‑8            */
-    int devNo  = asid - 1;                         /* device index   */
+    int asid = currentSupportStruct->sup_asid;   /* 1‑8            */
 
     /* ---------------------------------------------------------- *
-     * 1.  Release every **mutex** semaphore we may still own
-     *     (printer, disk, terminal‑rx and ‑tx, …)
+     * 1. Release all device semaphores this U-Proc may hold
      * ---------------------------------------------------------- */
     int line;
-    for (line = 0; line < DEVINTNUM; line++) {
-        int idx = line * DEVPERINT + devNo;              /* receiver/printer */
-        if (devSemaphores[idx] == 0)                     /* we P‑ed but never V‑ed */
-            SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[idx], 0, 0);
-
-        /* terminal transmitter lives DEVPERINT ahead on line 7          */
-        if (line == (TERMINT - OFFSET)) {
-            idx += DEVPERINT;
-            if (devSemaphores[idx] == 0)
-                SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[idx], 0, 0);
+    /* Plus 1 since for each terminal, there are a transmitter and a receiver */
+    for (line = 0; line < DEVTYPES + 1; line++) {
+        int index = (line * DEVPERINT) + (asid - 1);
+        if (devSemaphores[index] == 0) {
+            /* Release it */
+            SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[index], 0, 0);
         }
     }
 
     /* ---------------------------------------------------------- *
-     * 2.  Reclaim swap‑pool frames that still belong to this ASID
-     * ---------------------------------------------------------- */
-    SYSCALL(SYS3CALL, (unsigned int) &swapPoolSemaphore, 0, 0);
-    int f;
-    for (f = 0; f < SWAPPOOLSIZE; ++f)
-        if (swapPoolTable[f].asid == asid)
-            swapPoolTable[f].asid = EMPTYFRAME;
-    SYSCALL(SYS4CALL, (unsigned int) &swapPoolSemaphore, 0, 0);
-
-    /* ---------------------------------------------------------- *
-     * 3.  Invalidate every PTE we own and flush the TLB once
-     * ---------------------------------------------------------- */
-    setSTATUS(getSTATUS() & IECOFF);                    /* atomic zone */
-    int p;
-    for (p = 0; p < NUMPAGES; ++p)
-        currentSupportStruct->sup_privatePgTbl[p].pt_entryLO &= VALIDOFF;
-    TLBCLR();                                           /* nuke cache  */
-    setSTATUS(getSTATUS() | IECON);
-
-    /* ---------------------------------------------------------- *
-     * 4.  Wake initProc (master semaphore) so it can count us out
+     * 2. V the masterSemaphore so InitProc can wake up
      * ---------------------------------------------------------- */
     SYSCALL(SYS4CALL, (unsigned int) &masterSemaphore, 0, 0);
 
     /* ---------------------------------------------------------- *
-     * 5.  Finally ask the nucleus to kill us and all our children
+     * 3. Finally, invoke SYS2 to terminate this U-Proc
      * ---------------------------------------------------------- */
     SYSCALL(SYS2CALL, 0, 0, 0);                         /* never returns */
 
@@ -119,8 +93,6 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
-    char *virtualAddress;                /* Virtual address in the U-proc's address space where the string begins */
-    int stringLength;                   /* Length of the string to print */
     int deviceNum;                      /* Device number (derived from the support struct's ASID) */
     int index;                          /* Index into the device register array and semaphore array */
     unsigned int status;                /* Variable to hold the device status returned by SYS5 */
@@ -130,8 +102,8 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     * 1. Retrieve the SYSCALL parameters from the support structure
     *---------------------------------------------------------------*/
     /* Extract the virtual address from register a1 and string length from a2 */
-    virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
-    stringLength = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
+    char *virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
+    int stringLength = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
 
     /*--------------------------------------------------------------*
     * 2. Check if the parameters are valid
@@ -215,25 +187,23 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
  */
 void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
-    * 0. Initialize Local Variables 
-    *---------------------------------------------------------------*/
-    char *virtualAddress;            /* Virtual address in the U-proc's address space where the string begins */
-    int stringLength;               /* Length of the string to print */
+     * 0. Initialize Local Variables 
+     *---------------------------------------------------------------*/
     int deviceNum;                  /* Device number (derived from the support struct's ASID) */                       
     int index;                      /* Index into the device register array and semaphore array */
     unsigned int status;            /* Variable to hold the device status returned by SYS5 */
     int statusCode;                 /* Extracted status code from the device status */
 
     /*--------------------------------------------------------------*
-    * 1. Retrieve the SYSCALL parameters from the support structure
-    *---------------------------------------------------------------*/
+     * 1. Retrieve the SYSCALL parameters from the support structure
+     *---------------------------------------------------------------*/
     /* Extract the virtual address from register a1 and string length from a2 */
-    virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
-    stringLength = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
+    char *virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
+    int stringLength = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
 
     /*--------------------------------------------------------------*
-    * 2. Check if the parameters are valid
-    *---------------------------------------------------------------*/
+     * 2. Check if the parameters are valid
+     *---------------------------------------------------------------*/
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
     if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
@@ -315,7 +285,6 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
-    char *virtualAddress;        /* Virtual address of a string buffer where the data read should be placed */
     int deviceNum;                      /* Device number (derived from the support struct's ASID) */
     int index;                          /* Index into the device register array and semaphore array */
     unsigned int status;                /* Variable to hold the device status returned by SYS5 */
@@ -326,7 +295,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     * 1. Retrieve the SYSCALL parameter from the support structure
     *---------------------------------------------------------------*/
     /* Extract the virtual address from register a1 */
-    virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
+    char *virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
 
     /*--------------------------------------------------------------*
     * 2. Check if the parameters are valid
@@ -422,19 +391,17 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
 
 void VMgeneralExceptionHandler(void) {
     /* Get the support structure */
-    support_t *currentSupportStruct;
-    currentSupportStruct = (support_t *) SYSCALL(SYS8CALL, 0, 0, 0);
+    support_t *currentSupportStruct = (support_t *) SYSCALL(SYS8CALL, 0, 0, 0);
 
     /* Retrieve processor state at time of exception */
-    state_PTR savedState;
-    savedState = &(currentSupportStruct->sup_exceptState[GENERALEXCEPT]);
+    state_PTR savedState = &(currentSupportStruct->sup_exceptState[GENERALEXCEPT]);
 
     /* Check for the cause of the exception */
     int exceptionCode;
     exceptionCode = ((savedState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;
 
     /* Pass control to the correct exception handler */
-    if (exceptionCode == SYS8CALL) {
+    if (exceptionCode == SYSCALLCONST) {
         /* Pass control to Support Level's SYSCALL exception handler */
         VMsyscallExceptionHandler(savedState, currentSupportStruct);
     } else {

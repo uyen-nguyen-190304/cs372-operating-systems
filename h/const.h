@@ -63,6 +63,7 @@
 #define NETWINT 		    5                   /* network interface interrupt */
 #define PRNTINT 		    6                   /* printer interrupt */
 #define TERMINT			    7                   /* terminal interrupt */
+#define DEVTYPES            5                   /* number of device type: disk, flask, network, printer, terminal */   
 
 #define DEVREDADDBASE       0x10000054          /* device register base address */
 #define DEVINTNUM		    5		            /* interrupt lines used by devices */
@@ -146,7 +147,6 @@
 #define	DEV6INT			    0x00000040		
 #define	DEV7INT			    0x00000080		
 
-
 /* Device number */
 #define DEV0                0
 #define DEV1                1   
@@ -217,16 +217,18 @@
 #define VPNSHIFT            12                  /* virtual page number shift */
 #define PFNSHIFT            6                   /* physical frame number shift */ 
 #define TLBMODIFICATION     1                   /* TLB modification exception code */
+#define INDEXMASK           0x80000000          /* mask for Index.P bit */
 
 /* User Process Configuration */
 #define UPROCMAX            1                   /* max concurrent user processes */
 #define UPROCTEXTSTART      0x800000B0          /* start address of user text segment */
 #define USERSTACKTOP        0xC0000000          /* user stack top address */
 #define ASIDSHIFT           6                   /* address space identifier shift */
+#define STACKTOP            499                 /* top of stack area for exception handler */
 
 /* Virtual Page Number Boundaries */
 #define VPNSTART            0x80000             /* virtual page number start address */
-#define STACKPAGEVPN        0xBFFFFFFF          /* virtual page number for user stack */
+#define STACKPAGEVPN        0xBFFFF             /* virtual page number for user stack */
 
 /******************************* I/O & Device Constants *****************************/
 
@@ -246,11 +248,9 @@
 #define EOL                 0x0A                /* end-of-line character */
 
 /* Flash Device I/O */
-#define FLASHREAD           2                   /* flash read command */
-#define FLASHWRITE          3                   /* flash write command */
-#define BLOCKSHIFT          8                   /* shift for flash block operations */
 #define READBLK             2                   /* flash read block command */
 #define WRITEBLK            3                   /* flash write block command */
+#define BLOCKSHIFT          8                   /* shift for flash block operations */
 
 /******************************* Swap Pool Constants *****************************/
 
