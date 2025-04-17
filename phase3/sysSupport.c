@@ -437,7 +437,7 @@ void VMgeneralExceptionHandler(void) {
         VMsyscallExceptionHandler(savedState, currentSupportStruct);
     } else {
         /* Pass control to Support Level's Program Trap exception handler */
-        VMprogramTrapExceptionHandler();
+        VMprogramTrapExceptionHandler(currentSupportStruct);
     }
 }
 
