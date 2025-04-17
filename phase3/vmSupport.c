@@ -82,7 +82,7 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
     /*--------------------------------------------------------------*
     * 2. Gain mutual exclusion over the device 
     *---------------------------------------------------------------*/
-    mutex(&deviceSemaphores[index], TRUE);
+    mutex(&devSemaphores[index], TRUE);
 
     /*--------------------------------------------------------------*
     * 3. Perform the flash device operation
@@ -111,7 +111,7 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
    /*--------------------------------------------------------------*
     * 4. Release device semaphore
     *---------------------------------------------------------------*/
-    mutex(&deviceSemaphores[index], FALSE);
+    mutex(&devSemaphores[index], FALSE);
 
    /*--------------------------------------------------------------*
     * 5. Return the status code from the device
