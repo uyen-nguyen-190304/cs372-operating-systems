@@ -19,10 +19,10 @@
 #include "../h/sysSupport.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
-/******************************* FUNCTION DECLARATION *******************************/ 
+/******************************* FUNCTION DECLARATIONS *******************************/ 
 
-HIDDEN void terminateUserProcess(void);                                               /* SYS9 */
-HIDDEN void getTOD(state_PTR savedState);            /* SYS10 */
+HIDDEN void terminateUserProcess(support_t *currentSupportStruct);                                               /* SYS9  */
+HIDDEN void getTOD(state_PTR savedState);                                             /* SYS10 */
 HIDDEN void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct);    /* SYS11 */
 HIDDEN void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct);   /* SYS12 */
 HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct);  /* SYS13 */
@@ -32,12 +32,61 @@ HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStru
 /* 
  ! SYS9: terminateUserProcess
  */
-void terminateUserProcess(void) {
-    /* Release the master semaphore (V operation) */
-    SYSCALL(SYS4CALL, (unsigned int) &masterSemaphore, 0, 0); 
+void terminateUserProcess(support_t *currentSupportStruct)
+{
+    /* ---------------------------------------------------------- *
+     * 0.  Handy aliases
+     * ---------------------------------------------------------- */
+    int asid   = currentSupportStruct->sup_asid;   /* 1‑8            */
+    int devNo  = asid - 1;                         /* device index   */
 
-    /* Invoke SYS2 to terminate this process */
-    SYSCALL(SYS2CALL, 0, 0, 0);     /* This should never return back here */   
+    /* ---------------------------------------------------------- *
+     * 1.  Release every **mutex** semaphore we may still own
+     *     (printer, disk, terminal‑rx and ‑tx, …)
+     * ---------------------------------------------------------- */
+    int line;
+    for (line = 0; line < DEVINTNUM; line++) {
+        int idx = line * DEVPERINT + devNo;              /* receiver/printer */
+        if (devSemaphores[idx] == 0)                     /* we P‑ed but never V‑ed */
+            SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[idx], 0, 0);
+
+        /* terminal transmitter lives DEVPERINT ahead on line 7          */
+        if (line == (TERMINT - OFFSET)) {
+            idx += DEVPERINT;
+            if (devSemaphores[idx] == 0)
+                SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[idx], 0, 0);
+        }
+    }
+
+    /* ---------------------------------------------------------- *
+     * 2.  Reclaim swap‑pool frames that still belong to this ASID
+     * ---------------------------------------------------------- */
+    mutex(&swapPoolSemaphore, TRUE);                    /* P(swapPool) */
+    for (int f = 0; f < SWAPPOOLSIZE; ++f)
+        if (swapPoolTable[f].asid == asid)
+            swapPoolTable[f].asid = EMPTYFRAME;
+    mutex(&swapPoolSemaphore, FALSE);                   /* V(swapPool) */
+
+    /* ---------------------------------------------------------- *
+     * 3.  Invalidate every PTE we own and flush the TLB once
+     * ---------------------------------------------------------- */
+    setSTATUS(getSTATUS() & IECOFF);                    /* atomic zone */
+    for (int p = 0; p < NUMPAGES; ++p)
+        currentSupportStruct->sup_privatePgTbl[p].pt_entryLO &= VALIDOFF;
+    TLBCLR();                                           /* nuke cache  */
+    setSTATUS(getSTATUS() | IECON);
+
+    /* ---------------------------------------------------------- *
+     * 4.  Wake initProc (master semaphore) so it can count us out
+     * ---------------------------------------------------------- */
+    SYSCALL(SYS4CALL, (unsigned)&masterSemaphore, 0, 0);
+
+    /* ---------------------------------------------------------- *
+     * 5.  Finally ask the nucleus to kill us and all our children
+     * ---------------------------------------------------------- */
+    SYSCALL(SYS2CALL, 0, 0, 0);                         /* never returns */
+
+    PANIC();    /* should never reach here */
 }
 
 /*
@@ -432,6 +481,7 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
             VMprogramTrapExceptionHandler();
             break;
     }
+    
 }
 
 
