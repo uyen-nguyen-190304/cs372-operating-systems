@@ -178,7 +178,7 @@ void pager() {
     * 3. If the Cause if a TLB-Modification exception, treat as Program Trap
     *---------------------------------------------------------------*/    
     if (exceptionCode == TLBMODIFICATION) {
-        programTrapExceptionHandler();          /* Terminate the process */
+        VMprogramTrapExceptionHandler();          /* Terminate the process */
     }
 
     /*--------------------------------------------------------------*
@@ -253,7 +253,7 @@ void pager() {
     /*--------------------------------------------------------------*
     * 11. Update the Current Process's Page Table entry 
     *---------------------------------------------------------------*/ 
-    /* Page missingPageNo is now present (V bit) and occupying frame frameAddress (also the )*/
+    /* Page missingPageNo is now present (V bit) and occupying frame frameAddress */
     currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = frameAddress | VALIDON | DIRTYON;
 
     /*--------------------------------------------------------------*
