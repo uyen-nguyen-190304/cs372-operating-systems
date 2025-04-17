@@ -21,7 +21,7 @@
 
 /******************************* FUNCTION DECLARATIONS *******************************/ 
 
-HIDDEN void terminateUserProcess(support_t *currentSupportStruct);                                               /* SYS9  */
+HIDDEN void terminateUserProcess(support_t *currentSupportStruct);                    /* SYS9  */
 HIDDEN void getTOD(state_PTR savedState);                                             /* SYS10 */
 HIDDEN void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct);    /* SYS11 */
 HIDDEN void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct);   /* SYS12 */
@@ -37,7 +37,7 @@ void terminateUserProcess(support_t *currentSupportStruct)
     /* ---------------------------------------------------------- *
      * 0.  Declare local variable
      * ---------------------------------------------------------- */
-    int asid = currentSupportStruct->sup_asid;   /* 1‑8            */
+    int asid = currentSupportStruct->sup_asid;   /* 1‑8 */
 
     /* ---------------------------------------------------------- *
      * 1. Release all device semaphores this U-Proc may hold
@@ -72,13 +72,13 @@ void getTOD(state_PTR savedState) {
     /*--------------------------------------------------------------*
     * 1. Get the number of microseconds since system was last booted/reset
     *---------------------------------------------------------------*/
-    cpu_t currentTOD;
-    STCK(currentTOD);
+    cpu_t currentTime;
+    STCK(currentTime);
 
     /*--------------------------------------------------------------*
     * 2. Place the number in U-proc's v_0 register for return value
     *---------------------------------------------------------------*/
-    savedState->s_v0 = currentTOD; 
+    savedState->s_v0 = currentTime; 
 
     /*--------------------------------------------------------------*
     * 3. Return control to the instruction after SYSCALL instruction
@@ -331,7 +331,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
 
     /* Loop until reach EOL ("\n") character or error signal from the terminal  */
     int currentChar;                       /* Char just read from the terminal */
-   do {
+    do {
         /* Disable interrupts so that COMMAND + SYS5 is atomic */
         setSTATUS(getSTATUS() & IECOFF);
 
@@ -380,7 +380,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /*--------------------------------------------------------------*
     * 7. Release device semaphore
     *---------------------------------------------------------------*/
-   SYSCALL(SYS4CALL, (int) &devSemaphores[index], 0, 0); 
+    SYSCALL(SYS4CALL, (int) &devSemaphores[index], 0, 0); 
 
     /*--------------------------------------------------------------*
     * 8. Return control to the instruction after SYSCALL instruction
