@@ -236,11 +236,11 @@ void pager() {
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
-    status2 = flashDeviceOperation(FLASHREAD, currentSupportStruct->sup_asid, frameAddress, swapPoolTable[frameNumber].vpn);
+    status2 = flashDeviceOperation(FLASHREAD, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
 
     /* Treat any error status from the read operation as a program trap */
     if (status2 != SUCCESS) {
-        programTrapExceptionHandler(); /* Terminate the process */
+        VMprogramTrapExceptionHandler(); /* Terminate the process */
     }
 
     /*--------------------------------------------------------------*
