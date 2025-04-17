@@ -56,6 +56,36 @@ void debug5(int a, int b, int c, int d) {
     i++;
 }
 
+void debug6(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug7(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug8(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug9(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug10(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
 void initSwapStructs() {
     /* Initialize the Swap Pool Semaphore to 1 (mutual exclusion) */
     swapPoolSemaphore = 1;
@@ -298,10 +328,14 @@ void pager() {
     /* Page missingPageNo is now present (V bit) and occupying frame frameAddress */
     currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = frameAddress | VALIDON | DIRTYON;
 
+    debug6(0,0,0,0);
+
     /*--------------------------------------------------------------*
     * 12. Update the TLB - Erase all entries in the TLB
     *---------------------------------------------------------------*/ 
-    TLBCLR();                   
+    TLBCLR();   
+    
+    debug7(0,0,0,0);
 
     /* NOTE: Enable interrupt again, end of atomically step (11 & 12) */
     setInterrupt(TRUE);
@@ -310,6 +344,8 @@ void pager() {
     * 13. Release mutual exclusion over the Swap Pool table
     *---------------------------------------------------------------*/ 
     mutex(&swapPoolSemaphore, FALSE);
+
+    debug8(0,0,0,0);
 
     /*--------------------------------------------------------------*
     * 14. Return control to the Current Process to retry the instruction that caused the page fault
