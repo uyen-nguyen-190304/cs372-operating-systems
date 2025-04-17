@@ -270,8 +270,8 @@ void pager() {
     /*--------------------------------------------------------------*
     * 13. Release mutual exclusion over the Swap Pool table
     *---------------------------------------------------------------*/ 
-    mutex(&devSemaphores[index], FALSE);
-
+    mutex(&swapPoolSemaphore, FALSE);
+    
     /*--------------------------------------------------------------*
     * 14. Return control to the Current Process to retry the instruction that caused the page fault
     *---------------------------------------------------------------*/ 
