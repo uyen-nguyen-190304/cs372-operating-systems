@@ -218,7 +218,7 @@
 #define TLBMODIFICATION     1                    /* TLB modification exception code */
 
 /* User Process Configuration */
-#define UPROCMAX            8                   /* max concurrent user processes */
+#define UPROCMAX            1                   /* max concurrent user processes */
 #define UPROCTEXTSTART      0x800000B0          /* start address of user text segment */
 #define USERSTACKTOP        0xC0000000          /* user stack top address */
 #define ASIDSHIFT           6                   /* address space identifier shift */
