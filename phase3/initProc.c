@@ -90,8 +90,8 @@ void test() {
         supportStructArray[pid].sup_exceptContext[GENERALEXCEPT].c_status = ALLOFF | IEPON | PLTON | IMON;
 
         /* Set the two SP fields: End of the two stack spaces allocated in Support Structure */
-        supportStructArray[pid].sup_exceptContext[PGFAULTEXCEPT].c_stackPtr = (unsigned int) &(supportStructArray[pid].sup_stackGen[499]);
-        supportStructArray[pid].sup_exceptContext[GENERALEXCEPT].c_stackPtr = (unsigned int) &(supportStructArray[pid].sup_stackGen[499]);
+        supportStructArray[pid].sup_exceptContext[PGFAULTEXCEPT].c_stackPtr = (memaddr) &(supportStructArray[pid].sup_stackTLB[499]);
+        supportStructArray[pid].sup_exceptContext[GENERALEXCEPT].c_stackPtr = (memaddr) &(supportStructArray[pid].sup_stackGen[499]);
 
         /* Initialize the per-process Page Table */
         int j;
