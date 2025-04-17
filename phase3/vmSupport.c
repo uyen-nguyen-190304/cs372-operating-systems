@@ -123,27 +123,24 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
 
 int pageReplacement() {
     /* Declare local variable */
-    static int frameIndex = 0;          /* Index to the next frame to be used for replacement */
+    static int hand = 0;
+    int victim = -1;
 
-    /* Check the swap pool table for any frame that is marked free */
+    /* Look once around the pool for a free frame */
     int i;
     for (i = 0; i < SWAPPOOLSIZE; i++) {
-        /* If a free frame is found, return its index for use */
-        if (swapPoolTable[i].asid == EMPTYFRAME) {
-            frameIndex = i;             /* Found a free frame */
-            break;
+        int index = (hand + i) % SWAPPOOLSIZE;
+        if (swapPoolTable[index].asid == EMPTYFRAME) {
+            victim = index;
+            hand = (index + 1) % SWAPPOOLSIZE;
+            return victim;
         }
     }
 
-    /* Otherwise, choose an occupied frame and prepare it for eviction */
-    if (i == SWAPPOOLSIZE) {
-        /* If no free frame, use frameIndex for eviction */
-    }
-
-    /* Update the frameIndex to point to the next frame for future replacements */
-    frameIndex = (frameIndex + 1) % SWAPPOOLSIZE; /* Circular replacement */
-
-    return frameIndex; /* Return the index of the frame to be used for replacement */
+    /* Pool full -> evict the frame under the hand (FIFO) */
+    victim = hand;
+    hand = (hand + 1) % SWAPPOOLSIZE;
+    return victim;
 }
 
 /******************************* PAGER FUNCTION *******************************/
@@ -271,7 +268,7 @@ void pager() {
     * 13. Release mutual exclusion over the Swap Pool table
     *---------------------------------------------------------------*/ 
     mutex(&swapPoolSemaphore, FALSE);
-    
+
     /*--------------------------------------------------------------*
     * 14. Return control to the Current Process to retry the instruction that caused the page fault
     *---------------------------------------------------------------*/ 
