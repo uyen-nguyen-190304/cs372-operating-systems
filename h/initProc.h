@@ -13,7 +13,7 @@
 #include "../h/const.h"
 #include "../h/types.h"
 
-extern int masterSemaphores;                   /* Semaphore for synchronization */
+extern int masterSemaphore;                   /* Semaphore for synchronization */
 extern int devSemaphores[MAXIODEVICES];        /* Semaphore for mutual exclusion */
 extern void test();                            /* Instantiator process function */
 

@@ -241,6 +241,7 @@
 #define CHARTRANSMITTED     5                   /* transmitter status: char transmitted */
 #define CHARRECEIVED        5                   /* receiver status: char received */
 #define CHARRECEIVEDSHIFT   8                   /* shift for char received status */
+#define CHARRECEIVEDMASK    0xFF                /* mask to extract the received character */
 #define EOL                 0x0A                /* end-of-line character */
 
 /* Flash Device I/O */
