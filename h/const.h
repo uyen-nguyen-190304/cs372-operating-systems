@@ -213,9 +213,10 @@
 /******************************* Paging & Virtual Memory Constants *****************************/
 
 #define NUMPAGES            32                  /* pages per process private page table */
-#define VPNMASK             0xFFFFF000           /* virtual page number mask */
+#define VPNMASK             0xFFFFF000          /* virtual page number mask */
 #define VPNSHIFT            12                  /* virtual page number shift */
-#define TLBMODIFICATION     1                    /* TLB modification exception code */
+#define PFNSHIFT            6                   /* physical frame number shift */ 
+#define TLBMODIFICATION     1                   /* TLB modification exception code */
 
 /* User Process Configuration */
 #define UPROCMAX            1                   /* max concurrent user processes */
@@ -224,7 +225,7 @@
 #define ASIDSHIFT           6                   /* address space identifier shift */
 
 /* Virtual Page Number Boundaries */
-#define VPNSTART            0x00080000          /* virtual page number start address */
+#define VPNSTART            0x80000             /* virtual page number start address */
 #define STACKPAGEVPN        0xBFFFFFFF          /* virtual page number for user stack */
 
 /******************************* I/O & Device Constants *****************************/
