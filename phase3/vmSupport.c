@@ -155,7 +155,6 @@ void pager() {
     state_t     *savedState;                    /* Pointer to the saved exception state responsible for the TLB exception */
     int         exceptionCode;                  /* Exception code for the TLB exception */
     int         missingPageNo;                  /* Page number of the missing TLB entry */
-    int         frameNumber;                    /* Frame number of the page to be swapped in */
     int         frameAddress;                   /* Frame address of the page to be swapped in */
     int         status1, status2;               /* Status codes for the flash device operations */ 
     HIDDEN int frameNumber;
