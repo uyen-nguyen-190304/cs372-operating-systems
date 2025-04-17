@@ -226,7 +226,8 @@ void pager() {
 
         /* Treat any error status from the write operation as a program trap */
         if (status1 != SUCCESS) {
-            programTrapExceptionHandler(); /* Terminate the process */
+            mutex(&swapPoolSemaphore, FALSE);
+            VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
         }
     }
 
@@ -237,6 +238,7 @@ void pager() {
 
     /* Treat any error status from the read operation as a program trap */
     if (status2 != SUCCESS) {
+        mutex(&swapPoolSemaphore, FALSE);
         VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
     }
 
