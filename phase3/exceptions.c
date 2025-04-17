@@ -53,7 +53,7 @@ void uTLB_RefillHandler() {
     savedExceptionState = (state_PTR) BIOSDATAPAGE;
 
     /* Determine the page number of the missing TLB entry */
-    unsigned int missingPageNo;
+    int missingPageNo;
     missingPageNo = ((savedExceptionState->s_entryHI) & VPNMASK) >> VPNSHIFT;
     missingPageNo = missingPageNo % NUMPAGES;   /* Ensure the page number is within bounds */
 
