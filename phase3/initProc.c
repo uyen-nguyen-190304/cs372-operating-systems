@@ -30,11 +30,6 @@ int devSemaphores[MAXIODEVICES];        /* Semaphore for mutual exclusion */
 
 /******************************* EXTERNAL ELEMENTS *******************************/
 
-void debug1(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
 
 void test() {
     /*--------------------------------------------------------------*
@@ -116,7 +111,6 @@ void test() {
         /*----------------------------------------------------------*
         * c. Call SYS1 to create the U-Proc
         *-----------------------------------------------------------*/
-        debug1(0,0,0,0);
         status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) &supportStructArray[pid], 0); 
 
         if (status != CREATESUCCESS) {

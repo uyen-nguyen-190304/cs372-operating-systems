@@ -25,6 +25,14 @@ swap_t swapPoolTable[SWAPPOOLSIZE];             /* THE Swap Pool Table: one entr
 
 /************************* GLOBAL VARIABLES INITIALIZATION *************************/
 
+
+void debug1(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+
 void initSwapStructs() {
     /* Initialize the Swap Pool Semaphore to 1 (mutual exclusion) */
     swapPoolSemaphore = 1;
@@ -148,6 +156,7 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
  * Function     :   pager 
  */
 void pager() {
+    debug1(0,0,0,0);
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
