@@ -25,7 +25,7 @@ void main() {
 	buf2[status2] = EOS;
 
 	i = 0;
-	for( i = 0; i < status-1; i++ )
+	for( i = 0; i < status; i++ )
 	{
 		buf3[i] = buf[i];
 	}
