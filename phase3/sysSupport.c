@@ -137,7 +137,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
     if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
-        terminateUserProcess();
+        terminateUserProcess(currentSupportStruct);
     } 
 
     /*--------------------------------------------------------------*
@@ -235,7 +235,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
     if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
-        terminateUserProcess();
+        terminateUserProcess(currentSupportStruct);
     }
 
     /*--------------------------------------------------------------*
@@ -332,7 +332,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
    /* Validate that the address to read is in the user segment (KUSEG) */
    if ((int) virtualAddress < KUSEG) {
     /* Be brutal: SYS9 on bad argument */
-    terminateUserProcess();
+    terminateUserProcess(currentSupportStruct);
    }
 
     /*--------------------------------------------------------------*
@@ -454,7 +454,7 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
     switch (sysNum) {
         case SYS9CALL:
         /* SYS9 */
-            terminateUserProcess();
+            terminateUserProcess(currentSupportStruct);
             break;
 
         case SYS10CALL:
@@ -478,14 +478,14 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
             break;
 
         default:
-            VMprogramTrapExceptionHandler();
+            VMprogramTrapExceptionHandler(currentSupportStruct);
             break;
     }
     
 }
 
 
-void VMprogramTrapExceptionHandler() {
+void VMprogramTrapExceptionHandler(support_t *currentSupportStruct) {
     /* Terminate the process in an orderly fashion - SYS9 request */
-    terminateUserProcess();
+    terminateUserProcess(currentSupportStruct);
 }
