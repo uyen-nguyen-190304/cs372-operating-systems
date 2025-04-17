@@ -61,12 +61,12 @@ void terminateUserProcess(support_t *currentSupportStruct)
     /* ---------------------------------------------------------- *
      * 2.  Reclaim swap‑pool frames that still belong to this ASID
      * ---------------------------------------------------------- */
-    SYSCALL(SYS3CALL, &swapPoolSemaphore, 0, 0);
+    SYSCALL(SYS3CALL, (unsigned int) &swapPoolSemaphore, 0, 0);
     int f;
     for (f = 0; f < SWAPPOOLSIZE; ++f)
         if (swapPoolTable[f].asid == asid)
             swapPoolTable[f].asid = EMPTYFRAME;
-    SYSCALL(SYS4CALL, &swapPoolSemaphore, 0, 0);
+    SYSCALL(SYS4CALL, (unsigned int) &swapPoolSemaphore, 0, 0);
 
     /* ---------------------------------------------------------- *
      * 3.  Invalidate every PTE we own and flush the TLB once
@@ -81,7 +81,7 @@ void terminateUserProcess(support_t *currentSupportStruct)
     /* ---------------------------------------------------------- *
      * 4.  Wake initProc (master semaphore) so it can count us out
      * ---------------------------------------------------------- */
-    SYSCALL(SYS4CALL, (unsigned)&masterSemaphore, 0, 0);
+    SYSCALL(SYS4CALL, (unsigned int)&masterSemaphore, 0, 0);
 
     /* ---------------------------------------------------------- *
      * 5.  Finally ask the nucleus to kill us and all our children
