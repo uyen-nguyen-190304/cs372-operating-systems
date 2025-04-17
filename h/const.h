@@ -261,7 +261,7 @@
 
 #define MAXSTRINGLENGTH     128                 /* max length for terminal I/O strings */
 #define SUCCESS             1                   /* general success indicator */
-
+#define CREATESUCESS        0                   /* code for successfully create u-proc */
 
 
 

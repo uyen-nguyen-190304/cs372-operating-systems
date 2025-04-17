@@ -119,7 +119,7 @@ void test() {
         debug1(0,0,0,0);
         status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) &supportStructArray[pid], 0); 
 
-        if (status != 0) {
+        if (status != CREATESUCCESS) {
             SYSCALL(SYS2CALL, 0, 0, 0);
         }
     }
