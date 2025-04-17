@@ -73,7 +73,7 @@ void test() {
         initialState.s_status = ALLOFF | USERPON | IEPON | PLTON | IMON;
 
         /* Set EntryHi.ASID to the process's unique ID */
-        initialState.s_entryHI = pid << ASIDSHIFT; 
+        initialState.s_entryHI = ALLOFF | KUSEG | (pid << ASIDSHIFT); 
 
         /*----------------------------------------------------------*
         * b. Set up the support structure for the U-Proc
