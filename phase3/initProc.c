@@ -80,7 +80,7 @@ void test() {
                        
 
         /* Set EntryHi.ASID to the process's unique ID */
-        initialState.s_entryHI = ALLOFF | KUSEG | (pid << ASIDSHIFT); 
+        initialState.s_entryHI = ALLOFF | (pid << ASIDSHIFT); 
 
         /*----------------------------------------------------------*
         * b. Set up the support structure for the U-Proc
