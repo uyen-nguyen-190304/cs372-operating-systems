@@ -32,6 +32,29 @@ void debug1(int a, int b, int c, int d) {
     i++;
 }
 
+void debug2(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug3(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug4(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug5(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
 
 void initSwapStructs() {
     /* Initialize the Swap Pool Semaphore to 1 (mutual exclusion) */
@@ -115,7 +138,7 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
 
     /* Re-enable interrupts now that the atomic operation is complete */
     setInterrupt(TRUE);
-
+    
    /*--------------------------------------------------------------*
     * 4. Release device semaphore
     *---------------------------------------------------------------*/
@@ -156,7 +179,6 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
  * Function     :   pager 
  */
 void pager() {
-    debug1(0,0,0,0);
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
@@ -199,6 +221,7 @@ void pager() {
     *---------------------------------------------------------------*/ 
     missingPageNo = ((savedState->s_entryHI) & VPNMASK) >> VPNSHIFT;
     missingPageNo = missingPageNo % NUMPAGES;   /* Ensure the page number is within bounds */
+    debug1(0,0,0,0);
 
     /*--------------------------------------------------------------*
     * 6. Pick a frame from the Swap Pool
@@ -210,6 +233,8 @@ void pager() {
     /* Calculate the frame address */
     frameAddress = (frameNumber * PAGESIZE) + SWAPPOOLSTART;    
     
+    debug2(0,0,0,0);
+
     /*--------------------------------------------------------------*
     * 7. Determine if the frame is occupied
     *---------------------------------------------------------------*/ 
@@ -233,17 +258,21 @@ void pager() {
         /* c. Update process's backing store */
         status1 = flashDeviceOperation(FLASHWRITE, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
 
+        debug3(0,0,0,0);
+
         /* Treat any error status from the write operation as a program trap */
         if (status1 != SUCCESS) {
             mutex(&swapPoolSemaphore, FALSE);
             VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
         }
     }
-
+    
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
     status2 = flashDeviceOperation(FLASHREAD, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
+
+    debug4(0,0,0,0);
 
     /* Treat any error status from the read operation as a program trap */
     if (status2 != SUCCESS) {
@@ -257,6 +286,8 @@ void pager() {
     swapPoolTable[frameNumber].vpn  = missingPageNo;
     swapPoolTable[frameNumber].asid = currentSupportStruct->sup_asid;
     swapPoolTable[frameNumber].pte  = &(currentSupportStruct->sup_privatePgTbl[missingPageNo]);
+
+    debug5(0,0,0,0);
 
     /* NOTE: Disable interrupt to perform step 11 & 12 atomically */
     setInterrupt(FALSE);
