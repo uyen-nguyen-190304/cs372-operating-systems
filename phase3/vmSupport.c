@@ -237,7 +237,7 @@ void pager() {
 
     /* Treat any error status from the read operation as a program trap */
     if (status2 != SUCCESS) {
-        VMprogramTrapExceptionHandler(); /* Terminate the process */
+        VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
     }
 
     /*--------------------------------------------------------------*
