@@ -57,13 +57,9 @@ void uTLB_RefillHandler() {
     missingPageNo = ((savedExceptionState->s_entryHI) & VPNMASK) >> VPNSHIFT;
     missingPageNo = missingPageNo % NUMPAGES;   /* Ensure the page number is within bounds */
 
-    /* Get the Page Table entry corresponds to 'missingPageNo' */
-    pte_t *ptEntry;
-    ptEntry = &(currentProcess->p_supportStruct->sup_privatePgTbl[missingPageNo]);
-
     /* Write this Page Table entry into the TLB */
-    setENTRYHI(ptEntry->pt_entryHI);
-    setENTRYLO(ptEntry->pt_entryLO);
+    setENTRYHI(currentProcess->p_supportStruct->sup_privatePgTbl[missingPageNo].pt_entryHI);
+    setENTRYLO(currentProcess->p_supportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO);
     TLBWR();
 
     /* Return control to the current process to retry instruction that caused the TLB-Refill event */
