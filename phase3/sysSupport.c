@@ -81,7 +81,7 @@ void terminateUserProcess(support_t *currentSupportStruct)
     /* ---------------------------------------------------------- *
      * 4.  Wake initProc (master semaphore) so it can count us out
      * ---------------------------------------------------------- */
-    SYSCALL(SYS4CALL, (unsigned int)&masterSemaphore, 0, 0);
+    SYSCALL(SYS4CALL, (unsigned int) &masterSemaphore, 0, 0);
 
     /* ---------------------------------------------------------- *
      * 5.  Finally ask the nucleus to kill us and all our children

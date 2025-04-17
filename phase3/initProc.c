@@ -60,8 +60,8 @@ void test() {
     /* Set SP to start of the one-page user-mode stack (0xC000.0000) */
     initialState.s_sp = (memaddr) USERSTACKTOP;
 
-        /* Set Status to user-mode with all interrupts and processor Local Timer Enable */
-        initialState.s_status = ALLOFF | USERPON | IEPON | PLTON | IMON;
+    /* Set Status to user-mode with all interrupts and processor Local Timer Enable */
+    initialState.s_status = ALLOFF | USERPON | IEPON | PLTON | IMON;
 
     /*--------------------------------------------------------------*
     * 2. Initialize and Launch (SYS1) between 1-8 U-Procs
