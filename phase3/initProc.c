@@ -118,6 +118,9 @@ void test() {
     for (k = 0; k < UPROCMAX; k++) {
         SYSCALL(SYS3CALL, (unsigned int) &masterSemaphore, 0, 0); /* P operation */
     }
+
+    /* Terminate the instantiator process */
+    SYSCALL(SYS2CALL, 0, 0, 0);
 }
 
 /******************************* END OF INITPROC.c *******************************/
