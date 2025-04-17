@@ -61,17 +61,19 @@ void terminateUserProcess(support_t *currentSupportStruct)
     /* ---------------------------------------------------------- *
      * 2.  Reclaim swap‑pool frames that still belong to this ASID
      * ---------------------------------------------------------- */
-    mutex(&swapPoolSemaphore, TRUE);                    /* P(swapPool) */
-    for (int f = 0; f < SWAPPOOLSIZE; ++f)
+    SYSCALL(SYS3CALL, &swapPoolSemaphore, 0, 0);
+    int f;
+    for (f = 0; f < SWAPPOOLSIZE; ++f)
         if (swapPoolTable[f].asid == asid)
             swapPoolTable[f].asid = EMPTYFRAME;
-    mutex(&swapPoolSemaphore, FALSE);                   /* V(swapPool) */
+    SYSCALL(SYS4CALL, &swapPoolSemaphore, 0, 0);
 
     /* ---------------------------------------------------------- *
      * 3.  Invalidate every PTE we own and flush the TLB once
      * ---------------------------------------------------------- */
     setSTATUS(getSTATUS() & IECOFF);                    /* atomic zone */
-    for (int p = 0; p < NUMPAGES; ++p)
+    int p;
+    for (p = 0; p < NUMPAGES; ++p)
         currentSupportStruct->sup_privatePgTbl[p].pt_entryLO &= VALIDOFF;
     TLBCLR();                                           /* nuke cache  */
     setSTATUS(getSTATUS() | IECON);
