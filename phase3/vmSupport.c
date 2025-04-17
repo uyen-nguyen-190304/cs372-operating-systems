@@ -121,27 +121,26 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
 
 /************************* PAGE REPLACEMENT ALGORITHM *************************/
 
-int pageReplacement() {
-    /* Declare local variable */
-    static int hand = 0;
-    int victim = -1;
+/* 
+    int pageReplacement() {
+        static int hand = 0;
+        int victim = -1;
 
-    /* Look once around the pool for a free frame */
-    int i;
-    for (i = 0; i < SWAPPOOLSIZE; i++) {
-        int index = (hand + i) % SWAPPOOLSIZE;
-        if (swapPoolTable[index].asid == EMPTYFRAME) {
-            victim = index;
-            hand = (index + 1) % SWAPPOOLSIZE;
-            return victim;
+        int i;
+        for (i = 0; i < SWAPPOOLSIZE; i++) {
+            int index = (hand + i) % SWAPPOOLSIZE;
+            if (swapPoolTable[index].asid == EMPTYFRAME) {
+                victim = index;
+                hand = (index + 1) % SWAPPOOLSIZE;
+                return victim;
+            }
         }
-    }
 
-    /* Pool full -> evict the frame under the hand (FIFO) */
-    victim = hand;
-    hand = (hand + 1) % SWAPPOOLSIZE;
-    return victim;
-}
+        victim = hand;
+        hand = (hand + 1) % SWAPPOOLSIZE;
+        return victim;
+    }
+*/
 
 /******************************* PAGER FUNCTION *******************************/
 
@@ -159,6 +158,7 @@ void pager() {
     int         frameNumber;                    /* Frame number of the page to be swapped in */
     int         frameAddress;                   /* Frame address of the page to be swapped in */
     int         status1, status2;               /* Status codes for the flash device operations */ 
+    HIDDEN int frameNumber;
 
     /*--------------------------------------------------------------*
     * 1. Obtain the pointer to the Current Process's Support Structure
@@ -196,7 +196,8 @@ void pager() {
     * 6. Pick a frame from the Swap Pool
     *---------------------------------------------------------------*/ 
     /* Frame is chosen by the page replacement algorithm provided above */
-    frameNumber  = pageReplacement();                         
+    /*frameNumber  = pageReplacement();                         */
+    frameNumber = (frameNumber + 1) % SWAPPOOLSIZE;
 
     /* Calculate the frame address */
     frameAddress = (frameNumber * PAGESIZE) + SWAPPOOLSTART;    
