@@ -35,7 +35,9 @@ void test() {
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
     int pid;                                            /* Process ID */
+    state_t initialState;                                       
     static support_t supportStructArray[UPROCMAX + 1];      /* Array of support structures for U-procs */
+    int status;
 
     /*--------------------------------------------------------------*
      * 1. Initialize Phase 3 Data Structure 
@@ -52,6 +54,15 @@ void test() {
     /* Initialize the masterSemaphore */
     masterSemaphore = 0;                               /* For synchronization */
 
+    /* Set PC and s_t9 to start of the .text section (0x8000.00B0) */
+    initialState.s_pc = initialState.s_t9 = (memaddr) UPROCTEXTSTART;
+
+    /* Set SP to start of the one-page user-mode stack (0xC000.0000) */
+    initialState.s_sp = (memaddr) USERSTACKTOP;
+
+        /* Set Status to user-mode with all interrupts and processor Local Timer Enable */
+        initialState.s_status = ALLOFF | USERPON | IEPON | PLTON | IMON;
+
     /*--------------------------------------------------------------*
     * 2. Initialize and Launch (SYS1) between 1-8 U-Procs
     *---------------------------------------------------------------*/
@@ -60,17 +71,7 @@ void test() {
         /*----------------------------------------------------------*
         * a. Set up the initial processor state for the U-Proc
         *-----------------------------------------------------------*/
-        /* Declare the initial state of the U-Proc */
-        state_t initialState;                           
-
-        /* Set PC and s_t9 to start of the .text section (0x8000.00B0) */
-        initialState.s_pc = initialState.s_t9 = (memaddr) UPROCTEXTSTART;
-
-        /* Set SP to start of the one-page user-mode stack (0xC000.0000) */
-        initialState.s_sp = (memaddr) USERSTACKTOP;
-
-        /* Set Status to user-mode with all interrupts and processor Local Timer Enable */
-        initialState.s_status = ALLOFF | USERPON | IEPON | PLTON | IMON;
+                       
 
         /* Set EntryHi.ASID to the process's unique ID */
         initialState.s_entryHI = ALLOFF | KUSEG | (pid << ASIDSHIFT); 
@@ -97,19 +98,23 @@ void test() {
         int j;
         for (j = 0; j < NUMPAGES; j++) {
             /* Set the VPN and ASID in EntryHI */
-            supportStructArray[pid].sup_privatePgTbl[j].pt_entryHI = (VPNSTART + j) << VPNSHIFT | (pid << ASIDSHIFT);
+            supportStructArray[pid].sup_privatePgTbl[j].pt_entryHI = ALLOFF | (VPNSTART + j) << VPNSHIFT | (pid << ASIDSHIFT);
 
             /* Set the Dirty Bit in EntryLO */
-            supportStructArray[pid].sup_privatePgTbl[j].pt_entryLO = DIRTYON;
+            supportStructArray[pid].sup_privatePgTbl[j].pt_entryLO = ALLOFF | DIRTYON;
         }
 
         /* (Re)Set the VPN for Stack Page (last entry) to 0xBFFFF */
-        supportStructArray[pid].sup_privatePgTbl[NUMPAGES - 1].pt_entryHI = (STACKPAGEVPN << VPNSHIFT) | (pid << ASIDSHIFT);
+        supportStructArray[pid].sup_privatePgTbl[NUMPAGES - 1].pt_entryHI = ALLOFF | (STACKPAGEVPN << VPNSHIFT) | (pid << ASIDSHIFT);
 
         /*----------------------------------------------------------*
         * c. Call SYS1 to create the U-Proc
         *-----------------------------------------------------------*/
-        SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) &supportStructArray[pid], 0); 
+        status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) &supportStructArray[pid], 0); 
+
+        if (status != SUCCESS) {
+            SYSCALL(SYS2CALL, 0, 0, 0);
+        }
     }
     /*--------------------------------------------------------------*
     * 3. Repeatedly issue SYS3 on masterSemaphore for UPROCMAX times
