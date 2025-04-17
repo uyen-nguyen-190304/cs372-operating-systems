@@ -45,7 +45,7 @@ void test() {
     
     /* Initialize the semaphore of each (potentially) sharable peripheral I/O device */
     int i;
-    for (i = 0; i < MAXDEVICES; i++) {
+    for (i = 0; i < MAXDEVICES - 1; i++) {
         devSemaphores[i] = 1;                        /* For mutual exclusion */
     }
 
