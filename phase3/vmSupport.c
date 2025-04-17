@@ -178,7 +178,7 @@ void pager() {
     * 3. If the Cause if a TLB-Modification exception, treat as Program Trap
     *---------------------------------------------------------------*/    
     if (exceptionCode == TLBMODIFICATION) {
-        VMprogramTrapExceptionHandler();          /* Terminate the process */
+        VMprogramTrapExceptionHandler(currentSupportStruct);          /* Terminate the process */
     }
 
     /*--------------------------------------------------------------*
