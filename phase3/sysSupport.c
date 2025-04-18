@@ -44,6 +44,19 @@ HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStru
 
 /******************************* SYSCALL IMPLEMENTATIONS *******************************/
 
+void debug1(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug2(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+
 /* 
  * Function     :   terminateUserProcess
  * Purpose      :   Implement SYS9 to terminate a User Process. First, it will release 
@@ -96,6 +109,9 @@ void terminateUserProcess(support_t *currentSupportStruct)
  * Returns      :   None
  */
 void getTOD(state_PTR savedState) {
+
+    debug1(0,0,0,0);
+
     /* ------------------------------------------------------------ *
      * 1. Get the number of microseconds since system was last booted/reset
      * ------------------------------------------------------------ */
@@ -244,6 +260,9 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
  * Returns      :   None
  */
 void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
+
+    debug2(0,0,0,0);
+
     /* ------------------------------------------------------------ *
      * 0. Initialize Local Variables 
      * ------------------------------------------------------------ */
