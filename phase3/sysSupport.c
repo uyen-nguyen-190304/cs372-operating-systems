@@ -1,8 +1,23 @@
-/******************************* INITPROC.c ***************************************
+/******************************* SYSSUPPORT.c ***************************************
  *  
+ * This module implements the Support Level's system call handlers for user process in the Pandos kernal. 
+ * It provides:
+ *  - SYS9  :   terminateUserProcess
+ *              Terminate a U-Proc by releasing any device semaphores it holds, signaling InitProc's
+ *              masterSemaphore, then invoking the kernel's SYS2 to terminate the process and its progeny
+ *  - SYS10 :   Return the number of microseconds since system boot to the U‑Proc
+ *  - SYS11 :   Perform mutual‑exclusion protected output of a user‑supplied string to the printer, 
+ *              character by character; validate parameters and propagate any device errors
+ *  - SYS12 :   Analogous to SYS11 but for terminal output
+ *  - SYS13 :   Mutual‑exclusion protected input from the terminal into a user buffer until EOL, validating parameters
+ * 
+ * It also provides the exception dispatchers, which includes:
+ *  - VMgeneralExceptionHandler     : Top‑level support‑level exception dispatcher for SYSCALL and program trap
+ *  - VMsyscallExceptionHandler     : Dispatch support-level SYSCALLs (SYS9-13)
+ *  - VMprogramTrapExceptionHandler : Terminates the U-Proc on any support-level program trap 
  * 
  * Written by  : Uyen Nguyen
- * Last update : 2025/04/15
+ * Last update : 2025/04/17
  * 
  ***********************************************************************************/
 
@@ -27,22 +42,16 @@ HIDDEN void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct
 HIDDEN void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct);   /* SYS12 */
 HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct);  /* SYS13 */
 
-/******************************* FUNCTIONS IMPLEMENTATION *******************************/
-
-void debug1(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug2(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
+/******************************* SYSCALL IMPLEMENTATIONS *******************************/
 
 /* 
- ! SYS9: terminateUserProcess
+ * Function     :   terminateUserProcess
+ * Purpose      :   Implement SYS9 to terminate a User Process. First, it will release 
+ *                  any device semaphores held by the U-proc. Then, it performs a V operation
+ *                  on the masterSemaphore so InitProc can wake up and reclaim resources.
+ *                  Finally, it invokes a SYS2 to terminate this U-Proc and its progeny
+ * Parameters   :   currentSupportStruct - pointer to the support structure of the U-Proc to be terminated
+ * Returns      :   None
  */
 void terminateUserProcess(support_t *currentSupportStruct)
 {
@@ -77,61 +86,80 @@ void terminateUserProcess(support_t *currentSupportStruct)
     PANIC();    /* should never reach here */
 }
 
+
+
 /*
- ! SYS10: getTOD
+ * Function     :   getTOD
+ * Purpose      :   Implement SYS10 to return the current Time-Of-Day clock
+ *                  (microseconds since system boot) to the calling U-Proc.
+ * Parameters   :   savedState - pointer to the user's saved processor state
+ * Returns      :   None
  */
 void getTOD(state_PTR savedState) {
-    /*--------------------------------------------------------------*
-    * 1. Get the number of microseconds since system was last booted/reset
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 1. Get the number of microseconds since system was last booted/reset
+     * ------------------------------------------------------------ */
     cpu_t currentTime;
     STCK(currentTime);
 
-    /*--------------------------------------------------------------*
+    /* ------------------------------------------------------------ *
     * 2. Place the number in U-proc's v_0 register for return value
-    *---------------------------------------------------------------*/
+     * ------------------------------------------------------------ */
     savedState->s_v0 = currentTime; 
 
-    /*--------------------------------------------------------------*
-    * 3. Return control to the instruction after SYSCALL instruction
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 3. Return control to the instruction after SYSCALL instruction
+     * ------------------------------------------------------------ */
     LDST(savedState); 
 }
 
+
+
 /*
- ! SYS11: writeToPrinter
+ * Function     :   writeToPrinter
+ * Purpose      :   Implement SYS11 to write a user-supplied string to the printer.
+ *                  First, it fetches the user arguments (virtual address & length) from
+ *                  the support structure. Then, it validates the virtual address lies in
+ *                  user space and that the string length is of supported length. Next,
+ *                  it computes the printer's semaphore index based on ASID. Continue, it
+ *                  performs P on the printer's semaphore to enforce mutual exclusion, before
+ *                  looping over each character to write the char into device register's d_data0
+ *                  and issue SYS5 to block on the hardware. In each loop iterative, it will check
+ *                  the return status to make sure that no error occurs (else, it aborts). Finally,
+ *                  it places the number of character written, releases the semaphore (V) and 
+ *                  returns to the user
+ * Parameters   :   savedState - pointer to the saved processor state
+ *                  currentSupportStruct - user’s support struct (holds a1, a2 in its state)
+ * Returns      :   None
  */
 void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
-    
-    debug1(0,0,0,0);
-
-    /*--------------------------------------------------------------*
-    * 0. Initialize Local Variables 
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 0. Initialize Local Variables 
+     * ------------------------------------------------------------ */
     int deviceNum;                      /* Device number (derived from the support struct's ASID) */
     int index;                          /* Index into the device register array and semaphore array */
     unsigned int status;                /* Variable to hold the device status returned by SYS5 */
     int statusCode;                     /* Extracted status code from the device status */
 
-    /*--------------------------------------------------------------*
-    * 1. Retrieve the SYSCALL parameters from the support structure
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 1. Retrieve the SYSCALL parameters from the support structure
+     * ------------------------------------------------------------ */
     /* Extract the virtual address from register a1 and string length from a2 */
     char *virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
     int stringLength = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
 
-    /*--------------------------------------------------------------*
-    * 2. Check if the parameters are valid
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 2. Check if the parameters are valid
+     * ------------------------------------------------------------ */
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
     if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
         terminateUserProcess(currentSupportStruct);
     } 
 
-    /*--------------------------------------------------------------*
-    * 3. Identify the device number for the printer
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 3. Identify the device number for the printer
+     * ------------------------------------------------------------ */
     /* Pointer to device register area */
     devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
 
@@ -141,14 +169,14 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /* Compute the index into the device register array */
     index = ((PRNTINT - OFFSET) * DEVPERINT) + deviceNum;            
 
-    /*--------------------------------------------------------------*
-    * 4. Gain mutual exclusion over the device 
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 4. Gain mutual exclusion over the device 
+     * ------------------------------------------------------------ */
     SYSCALL(SYS3CALL, (int) &devSemaphores[index], 0, 0);
 
-    /*--------------------------------------------------------------*
-    5. Transmit each character to the printer
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 5. Transmit each character to the printer
+     * ------------------------------------------------------------ */
     int i;
     for (i = 0; i < stringLength; i++) {
         /* Disable interrupt so that COMMAND + SYS5 is atomic */
@@ -179,57 +207,70 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
         }
     }
 
-    /*--------------------------------------------------------------*
-    * 6. On success: return the number of characters transmitted
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 6. On success: return the number of characters transmitted
+     * ------------------------------------------------------------ */
     savedState->s_v0 = stringLength;
 
-    /*--------------------------------------------------------------*
-    * 7. Release device semaphore
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 7. Release device semaphore
+     * ------------------------------------------------------------ */
     SYSCALL(SYS4CALL, (int) &devSemaphores[index], 0, 0); 
 
-    debug2(0,0,0,0);
-
-    /*--------------------------------------------------------------*
-    * 8. Return control to the instruction after SYSCALL instruction
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 8. Return control to the instruction after SYSCALL instruction
+     * ------------------------------------------------------------ */
     LDST(savedState);
 }
 
 
 
 /*
- ! SYS12 : writeToTerminal
+ * Function     :   writeToTerminal
+ * Purpose      :   Implement SYS12 to write a user-supplied string to the terminal.
+ *                  First, it fetches the user arguments (virtual address & length) from
+ *                  the support structure. Then, it validates the virtual address lies in
+ *                  user space and that the string length is of supported length. Next,
+ *                  it computes the terminal's semaphore index based on ASID. Continue, it
+ *                  performs P on the terminal's semaphore to enforce mutual exclusion, before
+ *                  looping over each character to place the write command to terminal's transmitter 
+ *                  register (t_transm_command) and shift the character into higher bits. Then, it
+ *                  issues SYS5 to block on the hardware. In each loop iterative, it will check
+ *                  the return status to make sure that no error occurs (else, it aborts). Finally,
+ *                  it places the number of character written, releases the semaphore (V) and 
+ *                  returns to the user
+ * Parameters   :   savedState - pointer to the saved processor state
+ *                  currentSupportStruct - user’s support struct (holds a1, a2 in its state)
+ * Returns      :   None
  */
 void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
-    /*--------------------------------------------------------------*
+    /* ------------------------------------------------------------ *
      * 0. Initialize Local Variables 
-     *---------------------------------------------------------------*/
+     * ------------------------------------------------------------ */
     int deviceNum;                  /* Device number (derived from the support struct's ASID) */                       
     int index;                      /* Index into the device register array and semaphore array */
     unsigned int status;            /* Variable to hold the device status returned by SYS5 */
     int statusCode;                 /* Extracted status code from the device status */
 
-    /*--------------------------------------------------------------*
+    /* ------------------------------------------------------------ *
      * 1. Retrieve the SYSCALL parameters from the support structure
-     *---------------------------------------------------------------*/
+     * ------------------------------------------------------------ */
     /* Extract the virtual address from register a1 and string length from a2 */
     char *virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
     int stringLength = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
 
-    /*--------------------------------------------------------------*
+    /* ------------------------------------------------------------ *
      * 2. Check if the parameters are valid
-     *---------------------------------------------------------------*/
+     * ------------------------------------------------------------ */
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
     if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
         terminateUserProcess(currentSupportStruct);
     }
 
-    /*--------------------------------------------------------------*
-    * 3. Identify the device number for the terminal
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 3. Identify the device number for the terminal
+     * ------------------------------------------------------------ */
    /* Pointer to device register area */
     devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
 
@@ -239,15 +280,15 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /* Compute the index into the device register array */
     index = ((TERMINT - OFFSET) * DEVPERINT) + deviceNum;
 
-    /*--------------------------------------------------------------*
-    * 4. Gain mutual exclusion over the device 
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 4. Gain mutual exclusion over the device 
+     * ------------------------------------------------------------ */
    /* Note that the transmitter is DEVPERINT (8) index behind the receiver */
     SYSCALL(SYS3CALL, (int) &devSemaphores[index + DEVPERINT], 0, 0);   
 
-    /*--------------------------------------------------------------*
-    * 5. Transmit each character to the terminal
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 5. Transmit each character to the terminal
+     * ------------------------------------------------------------ */
     int i;
     for (i = 0; i < stringLength; i++) {
         /* Disable interrupt so that COMMAND + SYS5 is atomic */
@@ -277,55 +318,69 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
         }
     }
 
-    /*--------------------------------------------------------------*
-    * 6. On success: return the number of characters transmitted
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 6. On success: return the number of characters transmitted
+     * ------------------------------------------------------------ */
     savedState->s_v0 = stringLength;
 
-    /*--------------------------------------------------------------*
-    * 7. Release device semaphore
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 7. Release device semaphore
+     * ------------------------------------------------------------ */
     SYSCALL(SYS4CALL, (int) &devSemaphores[index + DEVPERINT], 0, 0);
 
-    /*--------------------------------------------------------------*
-    * 8. Return control to the instruction after SYSCALL instruction
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 8. Return control to the instruction after SYSCALL instruction
+     * ------------------------------------------------------------ */
     LDST(savedState);
 }
 
 
 
 /*
- ! SYS13: readFromTerminal
+ * Function     :   readFromTerminal
+ * Purpose      :   Implement SYS13 to atomically read characters from the terminal
+ *                  receiver into a user buffer until an EOL (end-of-line) character
+ *                  is encountered. First, it fetches the user buffer pointer from the
+ *                  given supportStruct. Then, it validates to ensure that the pointer is 
+ *                  actually in the user segment. Next, it P the corresponding device semaphore
+ *                  to lock the receiver. In each of the loop interation, it issues a SYS5
+ *                  with read = TRUE, extracts the received char from the status word, and store
+ *                  it in the buffer, increments the count until it hits the EOL character 
+ *                  or there was an error code from the device. After the loop, it v the receiver
+ *                  semaphore and then place the count in savedState->s_v0 for the total number 
+ *                  character received
+ * Parameters   :   savedState - pointer to the saved processor state
+ *                  currentSupportStruct - user’s support struct (holds a1 in its state)
+ * Returns      :   None
  */
 void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
-    /*--------------------------------------------------------------*
-    * 0. Initialize Local Variables 
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 0. Initialize Local Variables 
+     * ------------------------------------------------------------ */
     int deviceNum;                      /* Device number (derived from the support struct's ASID) */
     int index;                          /* Index into the device register array and semaphore array */
     unsigned int status;                /* Variable to hold the device status returned by SYS5 */
     int statusCode;                     /* Extracted status code from the device status */
     int readLength;                     /* Number of characters read from the terminal */
 
-    /*--------------------------------------------------------------*
-    * 1. Retrieve the SYSCALL parameter from the support structure
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 1. Retrieve the SYSCALL parameters from the support structure
+     * ------------------------------------------------------------ */
     /* Extract the virtual address from register a1 */
     char *virtualAddress = (char *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
 
-    /*--------------------------------------------------------------*
-    * 2. Check if the parameters are valid
-    *---------------------------------------------------------------*/
-   /* Validate that the address to read is in the user segment (KUSEG) */
-   if ((int) virtualAddress < KUSEG) {
+    /* ------------------------------------------------------------ *
+     * 2. Check if the parameter is indeed valid
+     * ------------------------------------------------------------ */
+    /* Validate that the address to read is in the user segment (KUSEG) */
+    if ((int) virtualAddress < KUSEG) {
     /* Be brutal: SYS9 on bad argument */
     terminateUserProcess(currentSupportStruct);
-   }
+    }
 
-    /*--------------------------------------------------------------*
-    * 3. Identify the device number for the printer
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+        * 3. Identify the device number for the printer
+        * ------------------------------------------------------------ */
     /* Pointer to device register area */
     devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
 
@@ -335,14 +390,14 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /* Compute the index into the device register array */
     index = ((TERMINT - OFFSET) * DEVPERINT) + deviceNum;            
 
-    /*--------------------------------------------------------------*
-    * 4. Gain mutual exclusion over the device 
-    *---------------------------------------------------------------*/
-   SYSCALL(SYS3CALL, (int) &devSemaphores[index], 0, 0);
+    /* ------------------------------------------------------------ *
+        * 4. Gain mutual exclusion over the device 
+        * ------------------------------------------------------------ */
+    SYSCALL(SYS3CALL, (int) &devSemaphores[index], 0, 0);
 
-    /*--------------------------------------------------------------*
-    * 5. Read each character from the terminal
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+        * 5. Read each character from the terminal
+        * ------------------------------------------------------------ */
     /* Initialize readLength as 0 before read loop */
     readLength = 0;
 
@@ -364,8 +419,8 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
         /* Mask off low byte to get status code from device status */
         statusCode = status & STATUSMASK;
 
-         /* Check if the receiver of the terminal reports a "Character Received" status (5) */
-         if (statusCode != CHARRECEIVED) {
+            /* Check if the receiver of the terminal reports a "Character Received" status (5) */
+            if (statusCode != CHARRECEIVED) {
             /* If not, set v0 to the negative of the status code to signal an error */
             savedState->s_v0 = -1 * statusCode;
 
@@ -387,37 +442,59 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
                 readLength++;
             }
         }
-   } while (currentChar != EOL);
+    } while (currentChar != EOL);
 
-    /*--------------------------------------------------------------*
-    * 6. On success: return the number of characters received
-    *---------------------------------------------------------------*/
+    /* Actually, also include EOL in the buffer and count it */
+    *(virtualAddress + readLength) = EOL;       /* Add the EOL character */
+    readLength++;                               /* Include EOL in the length */
+
+    /* ------------------------------------------------------------ *
+     * 6. On success: return the number of characters received
+     * ------------------------------------------------------------ */
     savedState->s_v0 = readLength;
 
-    /*--------------------------------------------------------------*
-    * 7. Release device semaphore
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 7. Release device semaphore
+     * ------------------------------------------------------------ */
     SYSCALL(SYS4CALL, (int) &devSemaphores[index], 0, 0); 
 
-    /*--------------------------------------------------------------*
-    * 8. Return control to the instruction after SYSCALL instruction
-    *---------------------------------------------------------------*/
+    /* ------------------------------------------------------------ *
+     * 8. Return control to the instruction after SYSCALL instruction
+     * ------------------------------------------------------------ */
     LDST(savedState);
 }
 
 
+
+/*
+ * Function     :   VMgeneralExceptionHandler
+ * Purpose      :   Top-level support exception dispatcher for U-Procs.
+ *                  Retrieves the current process's support structure and saved
+ *                  state, decodes the exception code, and routes the exception
+ *                  to either syscall or program trap handler
+ * Parameters   :   None
+ * Returns      :   None
+ */
 void VMgeneralExceptionHandler(void) {
-    /* Get the support structure */
+    /* ---------------------------------------------------------- *
+     * 1. Invoke SYS8 to get the support structure 
+     * ---------------------------------------------------------- */
     support_t *currentSupportStruct = (support_t *) SYSCALL(SYS8CALL, 0, 0, 0);
 
-    /* Retrieve processor state at time of exception */
+    /* ---------------------------------------------------------- *
+     * 2. Retrieve processor state at time of exception
+     * ---------------------------------------------------------- */
     state_PTR savedState = &(currentSupportStruct->sup_exceptState[GENERALEXCEPT]);
 
-    /* Check for the cause of the exception */
+    /* ---------------------------------------------------------- *
+     * 3. Decode exception code out of Cause register
+     * ---------------------------------------------------------- */
     int exceptionCode;
     exceptionCode = ((savedState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;
 
-    /* Pass control to the correct exception handler */
+    /* ---------------------------------------------------------- *
+     * 4. Dispatch control to either SYSCALL or program trap handler
+     * ---------------------------------------------------------- */
     if (exceptionCode == SYSCALLCONST) {
         /* Pass control to Support Level's SYSCALL exception handler */
         VMsyscallExceptionHandler(savedState, currentSupportStruct);
@@ -428,50 +505,79 @@ void VMgeneralExceptionHandler(void) {
 }
 
 
-void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportStruct) {
-    /* Get the syscall number */
-    unsigned int sysNum;
-    sysNum = savedState->s_a0;
 
+/*
+ * Function     :   VMsyscallExceptionHandler
+ * Purpose      :   Dispatch support-level SYSCALL exception (SYS9-13)
+ *                  First, it advances the saved PC by WORDLEN (4) to skip the SYSCALL instruction
+ *                  and avoid SYSCALL infinite loop. Then, it read the syscall number from
+ *                  savedState->s_a0, then switch on syscall number:
+ *                      - SYS9    -> terminateUserProcess
+ *                      - SYS10   -> getTOD
+ *                      - SYS11   -> writeToPrinter
+ *                      - SYS12   -> writeToTerminal
+ *                      - SYS13   -> readFromTerminal
+ *                      - default -> treat as program trap and call program trap handler
+ * Parameters   :   savedState - pointer to the saved processor state
+ *                  currentSupportStruct - user’s support struct (holds a1, a2 in its state)
+ * Returns      :   None              
+ */
+void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportStruct) {
+    /* ------------------------------------------------------------ *
+     * 1. Advance the PC past the SYSCALL instruction
+     * ------------------------------------------------------------ */
     /* Increment the PC by WORDLEN (4) to avoid infinite SYSCALL loop */
     savedState->s_pc = savedState->s_pc + WORDLEN;
 
+    /* ------------------------------------------------------------ *
+     * 2. Read the SYSCALL number from register a0
+     * ------------------------------------------------------------ */
+    unsigned int sysNum = savedState->s_a0;
+
+    /* ------------------------------------------------------------ *
+     * 3. Route to the appropriate handler
+     * ------------------------------------------------------------ */
     /* Dispatch the SYSCALL based on sysNum */
     switch (sysNum) {
         case SYS9CALL:
-        /* SYS9 */
+            /* SYS9: terminate this U-Proc */
             terminateUserProcess(currentSupportStruct);
-            break;
 
         case SYS10CALL:
-        /* SYS10: Get TOD */
+            /* SYS10: Return Time-Of-Day to user */
             getTOD(savedState);
-            break;
 
         case SYS11CALL:
-            /* SYS11: Write to Printer */
+            /* SYS11: Write buffer to printer */
             writeToPrinter(savedState, currentSupportStruct);
-            break;
             
         case SYS12CALL:
-            /* SYS12 */
+            /* SYS12: Write buffer to printer */
             writeToTerminal(savedState, currentSupportStruct);
-            break;
 
         case SYS13CALL:
-            /* SYS13 */
+            /* SYS13: Read from terminal into user buffer */
             readFromTerminal(savedState, currentSupportStruct);
             break;
 
         default:
+            /* For anything else, treat as *fatal* program trap */
             VMprogramTrapExceptionHandler(currentSupportStruct);
-            break;
     }
-    
 }
 
 
+
+/*
+ * Function     :   VMprogramTrapExceptionHandler
+ * Purpose      :   Handle any support-level program trap as fatal to the U-Proc.
+ *                  Simply invoke terminateUserProcess (SYS9) to kill this U-Proc.
+ * Parameters   :   currentSupportStruct - user’s support struct
+ * Returns      :   None
+ */
 void VMprogramTrapExceptionHandler(support_t *currentSupportStruct) {
-    /* Terminate the process in an orderly fashion - SYS9 request */
-    terminateUserProcess(currentSupportStruct);
+    /* ------------------------------------------------------------ *
+     * 1. Immediately kill the U-Proc (cleanup & SYS2)
+     * ------------------------------------------------------------ */
+    terminateUserProcess(currentSupportStruct);         /* Should never return */
 }
