@@ -201,7 +201,6 @@ int pageReplacement(void) {
     return victim;
 }
 
-
 /************************* TLB UPDATE FUNCTION *************************/
 
 /*

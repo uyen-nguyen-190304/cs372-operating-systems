@@ -44,19 +44,6 @@ HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStru
 
 /******************************* SYSCALL IMPLEMENTATIONS *******************************/
 
-void debug1(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug2(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-
 /* 
  * Function     :   terminateUserProcess
  * Purpose      :   Implement SYS9 to terminate a User Process. First, it will release 
@@ -99,8 +86,6 @@ void terminateUserProcess(support_t *currentSupportStruct)
     PANIC();    /* should never reach here */
 }
 
-
-
 /*
  * Function     :   getTOD
  * Purpose      :   Implement SYS10 to return the current Time-Of-Day clock
@@ -109,9 +94,6 @@ void terminateUserProcess(support_t *currentSupportStruct)
  * Returns      :   None
  */
 void getTOD(state_PTR savedState) {
-
-    debug1(0,0,0,0);
-
     /* ------------------------------------------------------------ *
      * 1. Get the number of microseconds since system was last booted/reset
      * ------------------------------------------------------------ */
@@ -128,8 +110,6 @@ void getTOD(state_PTR savedState) {
      * ------------------------------------------------------------ */
     LDST(savedState); 
 }
-
-
 
 /*
  * Function     :   writeToPrinter
@@ -239,8 +219,6 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     LDST(savedState);
 }
 
-
-
 /*
  * Function     :   writeToTerminal
  * Purpose      :   Implement SYS12 to write a user-supplied string to the terminal.
@@ -260,9 +238,6 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
  * Returns      :   None
  */
 void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
-
-    debug2(0,0,0,0);
-
     /* ------------------------------------------------------------ *
      * 0. Initialize Local Variables 
      * ------------------------------------------------------------ */
@@ -352,8 +327,6 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
      * ------------------------------------------------------------ */
     LDST(savedState);
 }
-
-
 
 /*
  * Function     :   readFromTerminal
@@ -483,8 +456,6 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     LDST(savedState);
 }
 
-
-
 /*
  * Function     :   VMgeneralExceptionHandler
  * Purpose      :   Top-level support exception dispatcher for U-Procs.
@@ -522,8 +493,6 @@ void VMgeneralExceptionHandler(void) {
         VMprogramTrapExceptionHandler(currentSupportStruct);
     }
 }
-
-
 
 /*
  * Function     :   VMsyscallExceptionHandler
@@ -584,8 +553,6 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
             VMprogramTrapExceptionHandler(currentSupportStruct);
     }
 }
-
-
 
 /*
  * Function     :   VMprogramTrapExceptionHandler
