@@ -263,7 +263,7 @@ void pager(void) {
     * 2. Determine the case of the TLB exception
     *---------------------------------------------------------------*/    
     /* Get the saved exception state in Current Process's Support Structure for TLB exception */
-    state_PTR savedState = &(currentSupportStruct->sup_exceptState[PGFAULTEXCEPT]);
+    state_t *savedState = &(currentSupportStruct->sup_exceptState[PGFAULTEXCEPT]);
 
     /* Extract the exception code from the saved exception state */
     exceptionCode = ((savedState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;
@@ -350,7 +350,7 @@ void pager(void) {
     setInterrupt(FALSE);
 
     /* Page missingPageNo is now present (V bit) and occupying frame frameAddress */
-    currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = frameAddress | VALIDON | DIRTYON;
+    currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = (frameAddress << 12) | VALIDON | DIRTYON;
 
     /*--------------------------------------------------------------*
     * 12. Update the TLB
