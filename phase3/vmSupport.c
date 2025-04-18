@@ -1,5 +1,13 @@
 /******************************* VMSUPPORT.c ***************************************
  * 
+ * This module implements virtual memory support routines for the Pandos kernel.
+ * It manages a semaphore-protected Swap Pool table, provides flash I/O operations
+ * for backing-store swapping, select victim frames using a free-first then round-robin
+ * policy, updates TLB entries, and handles page-fault exceptions through the pager functions.
+ * The pager coordinates acquiring the Swap Pool lock, evicting pages if necessary, reading 
+ * in the requested page from flash, updating the process's page table and TLB, and
+ * return control to the faulting process.
+ * 
  * Written by  : Uyen Nguyen
  * Last update : 2025/04/17
  * 
@@ -23,8 +31,13 @@
 int swapPoolSemaphore;                          /* Semaphore for the Swap Pool Table */
 swap_t swapPoolTable[SWAPPOOLSIZE];             /* THE Swap Pool Table: one entry per swap pool frame */
 
-/************************* GLOBAL VARIABLES INITIALIZATION *************************/
 
+/*
+ * Function     :   initSwapStructs
+ * Purpose      :   Initialize the Swap Pool semaphore and mark all frames free
+ * Parameters   :   None
+ * Returns      :   None 
+ */
 void initSwapStructs() {
     /* Initialize the Swap Pool Semaphore to 1 (mutual exclusion) */
     swapPoolSemaphore = 1;
@@ -32,61 +45,75 @@ void initSwapStructs() {
     /* Iteratively initialize the Swap Pool table */
     int i;
     for (i = 0; i < SWAPPOOLSIZE; i++) {
-        swapPoolTable[i].asid = EMPTYFRAME; /* Set the ASID to EMPTYFRAME (-1) */
+        swapPoolTable[i].asid = EMPTYFRAME;     /* Set the ASID to EMPTYFRAME (-1) */
     }
 }
 
 /******************************* HELPER FUNCTIONS *******************************/
 
 /* 
- * Function     :   setInterrupt 
+ * Function     :   setInterrupt
+ * Purpose      :   Atomically enable/disable hardware interrupts around critical sections
+ * Parameters   :   status - TRUE to enable interrupt, FALSE to disable
+ * Returns      :   None
  */
 void setInterrupt(int status) {
+    /* If the calling function asking to enable interrupt */
     if (status == TRUE) {
-        setSTATUS(getSTATUS() | IECON);     /* Turn interrupts on */
+        /* Set the interrupt enable bit */
+        setSTATUS(getSTATUS() | IECON);    
     } else {
-        setSTATUS(getSTATUS() & IECOFF);    /* Turn interrupts off */
+        /* Else, clear the interrupt enable bit */
+        setSTATUS(getSTATUS() & IECOFF);   
     }
 }
 
 /*
  * Function     :   mutex
+ * Purpose      :   Provide mutual exclusion by performing P or V on the given semaphore
+ * Parameters   :   semaphore - pointer to the integer semaphore variable for mutual exclusion
+ *                  doLock - TRUE for P, FALSE for V 
+ * Return       :   None
  */
 void mutex(int *semaphore, int doLock) {
     /* If doLock is TRUE, then wait on the semaphore */
     if (doLock == TRUE) {
-        SYSCALL(SYS3CALL, (unsigned int) semaphore, 0, 0);
+        SYSCALL(SYS3CALL, (unsigned int) semaphore, 0, 0);  /* P operation */
     } else {
-        SYSCALL(SYS4CALL, (unsigned int) semaphore, 0, 0);
+        /* Else, signal the semaphore instead */
+        SYSCALL(SYS4CALL, (unsigned int) semaphore, 0, 0);  /* V operation */
     }
 }
 
 /*
  * Function     :   flashDeviceOperation 
+ * Purpose      :   Perform a synchronous block read or write on the flash backing store device
+ *                  corresponding to the given ASID. Ensure atomicity by disabling interrupts 
+ *                  during register writes and protecting device access by a semaphore
+ * Parameters   :   operation    - READBLK (read page) or WRITEBLK (write page)
+ *                  ASID         - The ASID of the process whose page are swapped
+ *                  frameAddress - Physical address of the target frame
+ *                  pageNumber   - Logical page/block number for flash device
+ * Returns      :   int - Device status code from d_status register (SUCCESS or error code) 
  */
 int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumber) {
-    /*--------------------------------------------------------------*
-    * 0. Initialize Local Variables 
-    *---------------------------------------------------------------*/
-    int index;                      /* Index to the device register array and semaphore array*/
-
-    /*--------------------------------------------------------------*
-    * 1. Identify the device number for the flash
-    *---------------------------------------------------------------*/
+    /* --------------------------------------------------------------
+     * 1. Identify the device number for the flash
+     * -------------------------------------------------------------- */
     /* Pointer to the device register area */
     devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
 
     /* Compute the index into the device register array */
-    index = ((FLASHINT - OFFSET) * DEVPERINT) + (asid - 1);
+    int index = ((FLASHINT - OFFSET) * DEVPERINT) + (asid - 1);
 
-    /*--------------------------------------------------------------*
-    * 2. Gain mutual exclusion over the device 
-    *---------------------------------------------------------------*/
+    /* --------------------------------------------------------------
+     * 2. Gain mutual exclusion over the device 
+     * -------------------------------------------------------------- */
     mutex(&devSemaphores[index], TRUE);
 
-    /*--------------------------------------------------------------*
-    * 3. Perform the flash device operation
-    *---------------------------------------------------------------*/
+    /* --------------------------------------------------------------
+     * 3. Perform the flash device operation
+     * --------------------------------------------------------------- */
     /* Disable interrupts so that COMMAND + SYS5 is atomic */
     setInterrupt(FALSE);
     
@@ -108,29 +135,41 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
     /* Re-enable interrupts now that the atomic operation is complete */
     setInterrupt(TRUE);
     
-   /*--------------------------------------------------------------*
+   /* --------------------------------------------------------------
     * 4. Release device semaphore
-    *---------------------------------------------------------------*/
+    * -------------------------------------------------------------- */
     mutex(&devSemaphores[index], FALSE);
 
-   /*--------------------------------------------------------------*
+   /* --------------------------------------------------------------
     * 5. Return the status code from the device
-    *---------------------------------------------------------------*/
+    * -------------------------------------------------------------- */
     return (devRegArea->devreg[index].d_status);
 }
 
 /************************* PAGE REPLACEMENT ALGORITHM *************************/
 
 /*
- * Function     :   pageReplacement (first free, then round-robin) 
+ * Function     :   pageReplacement 
+ * Purpose      :   An optimization to the default page replacement given by Pandos
+ *                  to select a physical frame in the Swap Pool to satisfy the
+ *                  page-in request. First, it scans for a free frame. If no free
+ *                  frame available, it will evict using round-robin
+ * Parameters   :   None
+ * Returns      :   int - Index into Swap Pool Table of chosen victim frame
  */
-int pageReplacement() {
-    /* Static hand pointer to remember where we left off last time */
+int pageReplacement(void) {
+    /* --------------------------------------------------------------
+     * 0. Local variables declaration
+     * -------------------------------------------------------------- */    
+    /* Static hand pointer to keep track of next candidate for round-robin */
     static int hand = 0;
     
-    /* Initialize a victim variable - act as a return frame index */
+    /* Initialize a victim variable */
     int victim = -1;
 
+    /* --------------------------------------------------------------
+     * 1. Search for Free Frame
+     * -------------------------------------------------------------- */   
     /* First, scan through the entire Swap Pool for a free frame */
     int i;
     for (i = 0; i < SWAPPOOLSIZE; i++) {
@@ -150,7 +189,10 @@ int pageReplacement() {
         }
     }
 
-    /* Here, no free frame was found. Then, we'll evict the frame at hand */
+    /* --------------------------------------------------------------
+     * 2. Since none available, evict through round-robin
+     * -------------------------------------------------------------- */   
+    /* No free frame was found. We need to evict the frame at hand */
     victim = hand;
 
     /* Advance hand for next round (round-robin) */
@@ -163,6 +205,16 @@ int pageReplacement() {
 
 /************************* TLB UPDATE FUNCTION *************************/
 
+/*
+ * Function     :   updateTLB
+ * Purpose      :   Another optimization for update TLB. Here, the function
+ *                  will either refresh or install a TLB entry corresponding
+ *                  to the given Page Table entry. If an existing entry is found,
+ *                  (TLBP probe success), overwrite it. Otherwise, leave the TLB
+ *                  unchanged (hardware will refill later).
+ * Parameters   :   ptEntry - Pointer to the page table entry containing ENTRYHI/ENTRYLO
+ * Returns      :   None 
+ */
 void updateTLB(pte_t *ptEntry) {
     /* Load the VPN into the TLB's ENTRYHI register */
     setENTRYHI(ptEntry->pt_entryHI);
@@ -184,12 +236,20 @@ void updateTLB(pte_t *ptEntry) {
 /******************************* PAGER FUNCTION *******************************/
 
 /*
- * Function     :   pager 
+ * Function     :   pager
+ * Purpose      :   The pager, acts as a Support Level's TLB exception handler, handles
+ *                  TLB refill or page-fault exceptions for the current user process.
+ *                  It coordinates swap-out of victim pages, swap-in of requested page, 
+ *                  updates page table and TLB, and resumes execution at faulting instruction.
+ *                  Workflow includes 14 steps as described in the project description
+ * Parameters   :   None
+ * Returns      :   None
+ *  
  */
-void pager() {
-    /*--------------------------------------------------------------*
-    * 0. Initialize Local Variables 
-    *---------------------------------------------------------------*/
+void pager(void) {
+    /* --------------------------------------------------------------
+     * 0. Initialize Local Variables 
+     * -------------------------------------------------------------- */
     int         exceptionCode;                  /* Exception code for the TLB exception */
     int         missingPageNo;                  /* Page number of the missing TLB entry */
     int         frameNumber;                    /* Frame number of the page to be swapped in */
