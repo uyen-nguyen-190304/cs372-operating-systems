@@ -28,6 +28,18 @@
 
 /**************************** SUPPORT LEVEL GLOBAL VARIABLES ****************************/ 
 
+void debug1(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug2(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
 int masterSemaphore;                    /* Master semaphore for synchronizing U-Procs */
 int devSemaphores[MAXIODEVICES];        /* Semaphore for mutual exclusion on each I/O device */
 
@@ -125,12 +137,14 @@ void test() {
          * d. Invoke SYS1 to create the U-Proc
          * ----------------------------------------------------------- */
         status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) &(supportStructArray[pid]), 0); 
+        debug1(0,0,0,0);
 
         /* Check the status after creation */
         if (status != CREATESUCCESS) {
             /* If creation fails, terminate immediately (sorry) */
             SYSCALL(SYS2CALL, 0, 0, 0);
         }
+        debug2(0,0,0,0);
     }
     /* --------------------------------------------------------------
      * 4. Synchronize with U-Procs via masterSemaphore (SYS3)
