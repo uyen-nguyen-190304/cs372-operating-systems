@@ -320,9 +320,6 @@ void pager(void) {
 
         /* Treat any error status from the write operation as a program trap */
         if (status1 != SUCCESS) {
-            /* Release the Swap Pool semaphore */
-            mutex(&swapPoolSemaphore, FALSE);
-
             /* Terminate the current process */
             VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
         }
@@ -335,9 +332,6 @@ void pager(void) {
 
     /* Treat any error status from the read operation as a program trap */
     if (status2 != SUCCESS) {
-        /* Release the Swap Pool semaphore */
-        mutex(&swapPoolSemaphore, FALSE);
-
         /* Terminate the current process */
         VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
     }
