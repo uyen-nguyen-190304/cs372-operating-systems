@@ -76,7 +76,7 @@ void terminateUserProcess(support_t *currentSupportStruct)
     /* ---------------------------------------------------------- *
      * 2. V the masterSemaphore so InitProc can wake up
      * ---------------------------------------------------------- */
-    SYSCALL(SYS4CALL, (unsigned int) &masterSemaphore, 0, 0);
+    SYSCALL(SYS4CALL, (int) &masterSemaphore, 0, 0);
 
     /* ---------------------------------------------------------- *
      * 3. Finally, invoke SYS2 to terminate this U-Proc
@@ -371,8 +371,8 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     }
 
     /* ------------------------------------------------------------ *
-        * 3. Identify the device number for the printer
-        * ------------------------------------------------------------ */
+   * 3. Identify the device number for the printer
+     * ------------------------------------------------------------ */
     /* Pointer to device register area */
     devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
 
