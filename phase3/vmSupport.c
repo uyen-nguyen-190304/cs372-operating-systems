@@ -31,7 +31,6 @@
 int swapPoolSemaphore;                          /* Semaphore for the Swap Pool Table */
 swap_t swapPoolTable[SWAPPOOLSIZE];             /* THE Swap Pool Table: one entry per swap pool frame */
 
-
 /*
  * Function     :   initSwapStructs
  * Purpose      :   Initialize the Swap Pool semaphore and mark all frames free
