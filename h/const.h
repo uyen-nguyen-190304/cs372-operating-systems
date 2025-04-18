@@ -263,7 +263,7 @@
 #define MAXSTRINGLENGTH     128                 /* max length for terminal I/O strings */
 #define SUCCESS             1                   /* general success indicator */
 #define CREATESUCCESS       0                   /* code for successfully create u-proc */
-
+#define CACHED              0                   /* signal that the updated TLB is cached in TLB */
 
 
 #endif  /* CONSTS */

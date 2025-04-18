@@ -37,7 +37,7 @@ swap_t swapPoolTable[SWAPPOOLSIZE];             /* THE Swap Pool Table: one entr
  * Parameters   :   None
  * Returns      :   None 
  */
-void initSwapStructs() {
+void initSwapStructs(void) {
     /* Initialize the Swap Pool Semaphore to 1 (mutual exclusion) */
     swapPoolSemaphore = 1;
 
@@ -221,7 +221,7 @@ void updateTLB(pte_t *ptEntry) {
     TLBP();       
 
     /* Test the INDEX register’s invalid bit: if it's 0, we found a valid entry */
-    if ((getINDEX() & INDEXMASK) == 0) {
+    if ((getINDEX() & INDEXMASK) == CACHED) {
         /* Then, load the physical frame mapping + flags into ENTRYLO */
         setENTRYLO(ptEntry->pt_entryLO);
 
@@ -349,7 +349,7 @@ void pager(void) {
     setInterrupt(FALSE);
 
     /* Page missingPageNo is now present (V bit) and occupying frame frameAddress */
-    currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = frameAddress | VALIDON | DIRTYON;
+    currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = (frameAddress << 12) | VALIDON | DIRTYON;
 
     /*--------------------------------------------------------------*
     * 12. Update the TLB
