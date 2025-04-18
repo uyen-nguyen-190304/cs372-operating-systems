@@ -316,7 +316,7 @@ void pager(void) {
         setInterrupt(TRUE); 
 
         /* c. Update process's backing store */
-        status1 = flashDeviceOperation(WRITEBLK, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
+        status1 = flashDeviceOperation(FLASHWRITE, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
 
         /* Treat any error status from the write operation as a program trap */
         if (status1 != SUCCESS) {
@@ -331,7 +331,7 @@ void pager(void) {
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
-    status2 = flashDeviceOperation(READBLK, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
+    status2 = flashDeviceOperation(FLASHREAD, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
 
     /* Treat any error status from the read operation as a program trap */
     if (status2 != SUCCESS) {
@@ -356,7 +356,7 @@ void pager(void) {
     setInterrupt(FALSE);
 
     /* Page missingPageNo is now present (V bit) and occupying frame frameAddress */
-    currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = (frameAddress << 12) | VALIDON | DIRTYON;
+    currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = frameAddress | VALIDON | DIRTYON;
 
     /*--------------------------------------------------------------*
     * 12. Update the TLB

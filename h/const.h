@@ -248,6 +248,8 @@
 #define EOL                 0x0A                /* end-of-line character */
 
 /* Flash Device I/O */
+#define FLASHREAD           0                   /* constant for flash read operation */
+#define FLASHWRITE          1                   /* constant for flash write operation */
 #define READBLK             2                   /* flash read block command */
 #define WRITEBLK            3                   /* flash write block command */
 #define BLOCKSHIFT          8                   /* shift for flash block operations */
