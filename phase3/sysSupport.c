@@ -29,6 +29,18 @@ HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStru
 
 /******************************* FUNCTIONS IMPLEMENTATION *******************************/
 
+void debug1(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug2(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
 /* 
  ! SYS9: terminateUserProcess
  */
@@ -90,6 +102,9 @@ void getTOD(state_PTR savedState) {
  ! SYS11: writeToPrinter
  */
 void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
+    
+    debug1(0,0,0,0);
+
     /*--------------------------------------------------------------*
     * 0. Initialize Local Variables 
     *---------------------------------------------------------------*/
@@ -140,7 +155,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
         setSTATUS(getSTATUS() & IECOFF);
 
         /* Write the character to DATA0, issue the transmit command in COMMAND */
-        devRegArea->devreg[index].d_data0 = *(virtualAddress + i);
+        devRegArea->devreg[index].d_data0 = (int) *(virtualAddress + i);
         devRegArea->devreg[index].d_command = PRINTCHR;
 
         /* Block until the printer operation completes */
@@ -269,6 +284,8 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     * 7. Release device semaphore
     *---------------------------------------------------------------*/
     SYSCALL(SYS4CALL, (int) &devSemaphores[index + DEVPERINT], 0, 0);
+
+    debug2(0,0,0,0);
 
     /*--------------------------------------------------------------*
     * 8. Return control to the instruction after SYSCALL instruction

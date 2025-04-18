@@ -32,7 +32,7 @@ void main() {
 
 	for( i = 0; i < status2; i++ )
 	{
-		buf3[status-1 + i] = buf2[i];
+		buf3[status + i] = buf2[i];
 	}
 
 	buf3[status + status2 - 1] = EOS;

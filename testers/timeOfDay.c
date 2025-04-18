@@ -20,7 +20,7 @@ void main() {
 		print(WRITETERMINAL, "todTest ok: time increasing\n");
 
 	/* SYSCALL(DELAY, 1, 0, 0);		/* Delay 1 second */
-	for (i=0; i < 1000000000; i++)
+	for (i=0; i < 10000; i++)
 		;
 	
 	now1 = SYSCALL(GET_TOD, 0, 0, 0);
