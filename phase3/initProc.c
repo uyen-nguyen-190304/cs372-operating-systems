@@ -142,9 +142,9 @@ void test() {
         /* Check the status after creation */
         if (status != CREATESUCCESS) {
             /* If creation fails, terminate immediately (sorry) */
+            debug2(0,0,0,0);
             SYSCALL(SYS2CALL, 0, 0, 0);
         }
-        debug2(0,0,0,0);
     }
     /* --------------------------------------------------------------
      * 4. Synchronize with U-Procs via masterSemaphore (SYS3)
