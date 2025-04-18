@@ -189,6 +189,8 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     *---------------------------------------------------------------*/
     SYSCALL(SYS4CALL, (int) &devSemaphores[index], 0, 0); 
 
+    debug2(0,0,0,0);
+
     /*--------------------------------------------------------------*
     * 8. Return control to the instruction after SYSCALL instruction
     *---------------------------------------------------------------*/
@@ -284,8 +286,6 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     * 7. Release device semaphore
     *---------------------------------------------------------------*/
     SYSCALL(SYS4CALL, (int) &devSemaphores[index + DEVPERINT], 0, 0);
-
-    debug2(0,0,0,0);
 
     /*--------------------------------------------------------------*
     * 8. Return control to the instruction after SYSCALL instruction
