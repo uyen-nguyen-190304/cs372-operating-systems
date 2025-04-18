@@ -43,9 +43,18 @@ HIDDEN void getCPUTime();
 HIDDEN void waitForClock();
 HIDDEN void getSupportData();
 
+/******************************* PHASE 3 UTLB REFILL HANDLER *******************************/ 
+
 /*
  * Function     :   uTLB_RefillHandler
-  
+ * Purpose      :   Handle a user-mode TLB refill exception by loading the missing page's entry
+ *                  into the TLB and resuming execution. This handler first reads the saved exception
+ *                  state from BIOSDATAPAGE, then extract the VPN from the EntryHi register. It maps
+ *                  this VPN to an index in the current process's private Page Table. Next, it loads
+ *                  the corresponding Page Table entry into a free TLB slot (TLBWR). Finally, it load
+ *                  back to the saved and retry the faulting instruction
+ * Parameters   :   None
+ * Returns      :   None
  */
 void uTLB_RefillHandler() {
     /* Retrieve the processor state at the time of exception */
@@ -66,8 +75,8 @@ void uTLB_RefillHandler() {
     LDST(savedExceptionState);
 }
 
-
 /******************************* FUNCTIONS IMPLEMENTATION *******************************/ 
+
 /*
  * Function     :   createProcess
  * Purpose      :   Implement the SYS1 system call to create a new process
@@ -123,7 +132,6 @@ void createProcess(state_PTR initialState, support_t *supportStruct)
     LDST(&(currentProcess->p_s));
 }
 
-
 /*
  * Function     :   terminateProcess
  * Purpose      :   Implement the SYS2 system call to terminate a process and all of its progeny.
@@ -175,7 +183,6 @@ void terminateProcess(pcb_PTR proc)
     proc = NULL;
 }
 
-
 /*
  * Function     :   passeren
  * Purpose      :   Implement the SYS3 system call (P operation) for semaphore decrement.
@@ -211,7 +218,6 @@ void passeren(int *semAdd) {
     LDST(&(currentProcess->p_s));
 }   
 
-
 /*
  * Function     :   verhogen
  * Purpose      :   Implements the SYS4 system call (V operation) for semaphore increment.
@@ -238,7 +244,6 @@ void verhogen(int *semAdd) {
     /* Load the saved processor state to resume execution */
     LDST(&(currentProcess->p_s));
 }
-
 
 /*
  * Function     :   waitForIODevice
@@ -292,7 +297,6 @@ void waitForIODevice(int lineNum, int deviceNum, int readBoolean) {
     LDST(&(currentProcess->p_s));
 }
 
-
 /*
  * Function     :   getCPUTime
  * Purpose      :   Implements the SYS6 system call to return the total CPU time used 
@@ -318,7 +322,6 @@ void getCPUTime() {
     /* Load the saved processor state to resume execution */
     LDST(&(currentProcess->p_s));
 }
-
 
 /*
  * Function     :   waitForClock
@@ -372,7 +375,6 @@ void getSupportData() {
     LDST(&(currentProcess->p_s));
 }
 
-
 /*
  * Function     :   passUpOrDie
  * Purpose      :   Implements the "pass up or die" mechanism used by exception handlers.
@@ -418,7 +420,6 @@ void passUpOrDie(int exceptionCode) {
         PANIC();                                /* If the scheduler return, something went wrong, be PANIC */
     }
 }
-
 
 /*
  * Function     :   syscallExceptionHandler
@@ -511,7 +512,6 @@ void syscallExceptionHandler() {
     }
 }
 
-
 /*
  * Function     :   programTrapExceptionHandler
  * Purpose      :   The function handles the Program Trap Exception.
@@ -523,7 +523,6 @@ void syscallExceptionHandler() {
 void programTrapExceptionHandler() {
     passUpOrDie(GENERALEXCEPT);
 } 
-
 
 /*
  * Function     :   TLBExceptionHandler
