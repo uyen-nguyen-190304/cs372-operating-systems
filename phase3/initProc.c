@@ -1,8 +1,15 @@
 /******************************* INITPROC.c ***************************************
  *  
+ * This module implements the Phase 3 initialization process for the Pandos kernel.
+ * It initializes the Swap Pool structures (table & semaphore), device semaphores,
+ * and master semaphore. It constructs and configures the initial processor state 
+ * and support structures (exception contexts and private page table) for up to 
+ * UPROCMAX user processes, then invokes SYS1 to spawn each U-Proc. After creation,
+ * it performs SYS3 (P) on the masterSemaphore UPROCMAX times to synchronize, and
+ * finally issues SYS2 to terminate (halt) the system.
  * 
  * Written by  : Uyen Nguyen
- * Last update : 2025/04/13
+ * Last update : 2025/04/17
  * 
  ***********************************************************************************/
 
@@ -21,36 +28,47 @@
 
 /**************************** SUPPORT LEVEL GLOBAL VARIABLES ****************************/ 
 
-int masterSemaphore;                    /* Semaphore for synchronization */
-int devSemaphores[MAXIODEVICES];        /* Semaphore for mutual exclusion */
+int masterSemaphore;                    /* Master semaphore for synchronizing U-Procs */
+int devSemaphores[MAXIODEVICES];        /* Semaphore for mutual exclusion on each I/O device */
 
 /******************************* EXTERNAL ELEMENTS *******************************/
 
-
+/*
+ * Function     :   test()
+ * Purpose      :   Carry out Phase 3 initialization: setup Swap Pool Table and semaphores,
+ *                  build initial processor states and support structures for each U-Proc,
+ *                  create processes via SYS1, synchronize via SYS3, and halt via SYS2.
+ * Parameters   :   None
+ * Returns      :   None 
+ */
 void test() {
-    /*--------------------------------------------------------------*
-    * 0. Initialize Local Variables 
-    *---------------------------------------------------------------*/
-    int pid;                                                /* Process ID */
-    int status;
-    state_t initialState;                                   /* Initial state for U-Prοc Initialization */    
-    static support_t supportStructArray[UPROCMAX + 1];      /* Array of support structures for U-procs */
+    /* --------------------------------------------------------------
+     * 0. Initialize Local Variables 
+     *--------------------------------------------------------------- */
+    int pid;                                                /* U-Proc identifier (1..UPROCMAX) */
+    int status;                                             /* Return code from SYS1 */
+    state_t initialState;                                   /* Initial state template for new U-Proc */    
+    static support_t supportStructArray[UPROCMAX + 1];      /* Support structure for each U-Proc */
 
     /* --------------------------------------------------------------
      * 1. Initialize Phase 3 Data Structure 
      * --------------------------------------------------------------- */
-    /* Initialize Swap Pool semaphore & table */
-    initSwapStructs();                                 
+    /* Initialize Swap Pool table and its semaphore */
+    initSwapStructs();                                      /* Defined in vmSupport.c */   
     
-    /* Initialize the semaphore of each (potentially) sharable peripheral I/O device */
+    /* Initialize each (potentially) sharable peripheral I/O device semaphore */
     int i;
     for (i = 0; i < MAXIODEVICES; i++) {
-        devSemaphores[i] = 1;                        /* For mutual exclusion */
+        devSemaphores[i] = 1;                               /* For mutual exclusion */
     }
 
     /* Initialize the masterSemaphore */
-    masterSemaphore = 0;                               /* For synchronization */
+    masterSemaphore = 0;                                    /* For synchronization */
 
+
+    /* --------------------------------------------------------------
+     * 2. Setup the Initial Processor State Template for each U-Proc
+     * --------------------------------------------------------------- */
     /* Set PC and s_t9 to start of the .text section (0x8000.00B0) */
     initialState.s_pc = initialState.s_t9 = (memaddr) UPROCTEXTSTART;
 
@@ -61,7 +79,7 @@ void test() {
     initialState.s_status = ALLOFF | USERPON | IEPON | PLTON | IMON;
 
     /* --------------------------------------------------------------
-     * 2. Initialize and Launch (SYS1) between 1-8 U-Procs
+     * 3. Initialize and Launch (SYS1) between 1-8 U-Procs
      * --------------------------------------------------------------- */
     /* Loop for UPROCMAX U-Procs to set up the parameters for SYS1 and call SYS1 afterward */
     for (pid = 1; pid <= UPROCMAX; pid++) {
@@ -103,27 +121,29 @@ void test() {
         /* (Re)Set the VPN for Stack Page (last entry) to 0xBFFFF */
         supportStructArray[pid].sup_privatePgTbl[NUMPAGES - 1].pt_entryHI = ALLOFF | (STACKPAGEVPN << VPNSHIFT) | (pid << ASIDSHIFT);
 
-        /*----------------------------------------------------------*
-        * c. Call SYS1 to create the U-Proc
-        *-----------------------------------------------------------*/
+        /* ----------------------------------------------------------
+         * d. Invoke SYS1 to create the U-Proc
+         * ----------------------------------------------------------- */
         status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) &(supportStructArray[pid]), 0); 
 
+        /* Check the status after creation */
         if (status != CREATESUCCESS) {
-            /* SYS2 here since we yet to P the masterSemaphore */
+            /* If creation fails, terminate immediately (sorry) */
             SYSCALL(SYS2CALL, 0, 0, 0);
         }
     }
-    /*--------------------------------------------------------------*
-    * 3. Repeatedly issue SYS3 on masterSemaphore for UPROCMAX times
-    *---------------------------------------------------------------*/
+    /* --------------------------------------------------------------
+     * 4. Synchronize with U-Procs via masterSemaphore (SYS3)
+     * --------------------------------------------------------------- */
     int k;
     for (k = 0; k < UPROCMAX; k++) {
-        SYSCALL(SYS3CALL, (unsigned int) &masterSemaphore, 0, 0); /* P operation */
+        /* Repeated issue SYS3 on masterSemaphore for UPROCMAX times */
+        SYSCALL(SYS3CALL, (unsigned int) &masterSemaphore, 0, 0); 
     }
 
-    /*--------------------------------------------------------------*
-    * 4. After the loop, test() concludes by issuing a SYS2 -> HALT
-    *---------------------------------------------------------------*/
+    /* --------------------------------------------------------------
+     * 4. After the loop, test() concludes by issuing a SYS2 -> HALT
+     *---------------------------------------------------------------*/
     SYSCALL(SYS2CALL, 0, 0, 0);         /* Farewell */
 }
 
