@@ -76,7 +76,7 @@ void terminateUserProcess(support_t *currentSupportStruct)
     /* ---------------------------------------------------------- *
      * 2. V the masterSemaphore so InitProc can wake up
      * ---------------------------------------------------------- */
-    SYSCALL(SYS4CALL, (int) &masterSemaphore, 0, 0);
+    SYSCALL(SYS4CALL, (unsigned int) &masterSemaphore, 0, 0);
 
     /* ---------------------------------------------------------- *
      * 3. Finally, invoke SYS2 to terminate this U-Proc
