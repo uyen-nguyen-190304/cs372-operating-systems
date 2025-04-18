@@ -25,14 +25,14 @@ void main() {
 	buf2[status2] = EOS;
 
 	i = 0;
-	for( i = 0; i < status; i++ )
+	for( i = 0; i < status-1; i++ )
 	{
 		buf3[i] = buf[i];
 	}
 
 	for( i = 0; i < status2; i++ )
 	{
-		buf3[status + i] = buf2[i];
+		buf3[status-1 + i] = buf2[i];
 	}
 
 	buf3[status + status2 - 1] = EOS;
