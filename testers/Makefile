@@ -35,13 +35,12 @@ UDEV = umps3-mkdev
 
 #main target
 all: printerTest.umps strConcat.umps terminalReader.umps asciiArt.umps \
-	fibSeven.umps fibEight.umps fibNine.umps fibTen.umps fibEleven.umps \
-	terminalTest1.umps terminalTest2.umps terminalTest3.umps terminalTest4.umps \
-	terminalTest5.umps terminalTest6.umps terminalTest7.umps terminalTest8.umps \
-	timeOfDay.umps swapStress.umps
+    fibSeven.umps fibEight.umps fibNine.umps fibTen.umps fibEleven.umps \
+    terminalTest1.umps terminalTest2.umps terminalTest3.umps terminalTest4.umps \
+    terminalTest5.umps terminalTest6.umps terminalTest7.umps terminalTest8.umps \
+    timeOfDay.umps swapStress.umps \
+    test1.umps test2.umps
 
-	
-	
 %.o: %.c $(TDEFS)
 	$(CC) $(CFLAGS) $<
 	
