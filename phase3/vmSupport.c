@@ -89,7 +89,7 @@ void mutex(int *semaphore, int doLock) {
  * Purpose      :   Perform a synchronous block read or write on the flash backing store device
  *                  corresponding to the given ASID. Ensure atomicity by disabling interrupts 
  *                  during register writes and protecting device access by a semaphore
- * Parameters   :   operation    - READBLK (read page) or WRITEBLK (write page)
+ * Parameters   :   operation    - FLASHREAD (read page) or FLASHWRITE (write page)
  *                  ASID         - The ASID of the process whose page are swapped
  *                  frameAddress - Physical address of the target frame
  *                  pageNumber   - Logical page/block number for flash device
@@ -320,9 +320,6 @@ void pager(void) {
 
         /* Treat any error status from the write operation as a program trap */
         if (status1 != SUCCESS) {
-            /* Release the Swap Pool semaphore */
-            mutex(&swapPoolSemaphore, FALSE);
-
             /* Terminate the current process */
             VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
         }
@@ -335,9 +332,6 @@ void pager(void) {
 
     /* Treat any error status from the read operation as a program trap */
     if (status2 != SUCCESS) {
-        /* Release the Swap Pool semaphore */
-        mutex(&swapPoolSemaphore, FALSE);
-
         /* Terminate the current process */
         VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
     }
