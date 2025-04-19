@@ -44,18 +44,6 @@ HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStru
 
 /******************************* SYSCALL IMPLEMENTATIONS *******************************/
 
-void debug1(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
-void debug2(int a, int b, int c, int d) {
-    int i;
-    i = 0;
-    i++;
-}
-
 /* 
  * Function     :   terminateUserProcess
  * Purpose      :   Implement SYS9 to terminate a User Process. First, it will release 
@@ -94,8 +82,6 @@ void terminateUserProcess(support_t *currentSupportStruct)
      * 3. Finally, invoke SYS2 to terminate this U-Proc
      * ---------------------------------------------------------- */
     SYSCALL(SYS2CALL, 0, 0, 0);                         /* never returns */
-
-    PANIC();    /* should never reach here */
 }
 
 /*
@@ -378,8 +364,8 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
      * ------------------------------------------------------------ */
     /* Validate that the address to read is in the user segment (KUSEG) */
     if ((int) virtualAddress < KUSEG) {
-    /* Be brutal: SYS9 on bad argument */
-    terminateUserProcess(currentSupportStruct);
+        /* Be brutal: SYS9 on bad argument */
+        terminateUserProcess(currentSupportStruct);
     }
 
     /* ------------------------------------------------------------ *

@@ -95,7 +95,7 @@ void mutex(int *semaphore, int doLock) {
  *                  pageNumber   - Logical page/block number for flash device
  * Returns      :   int - Device status code from d_status register (SUCCESS or error code) 
  */
-int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumber) {
+void flashDeviceOperation(support_t *currentSupportStruct, int operation, int asid, int frameAddress, int pageNumber) {
     /* --------------------------------------------------------------
      * 1. Identify the device number for the flash
      * -------------------------------------------------------------- */
@@ -129,21 +129,30 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
     }
 
     /* Wait for the device to complete the operation */
-    int status = SYSCALL(SYS5CALL, FLASHINT, (asid - 1), operation);
+    SYSCALL(SYS5CALL, FLASHINT, (asid - 1), operation);
 
     /* Re-enable interrupts now that the atomic operation is complete */
     setInterrupt(TRUE);
     
+    /* Get the status code from the device's register */
+    int statusCode = devRegArea->devreg[index].d_status;
+
    /* --------------------------------------------------------------
     * 4. Release device semaphore
     * -------------------------------------------------------------- */
     mutex(&devSemaphores[index], FALSE);
 
    /* --------------------------------------------------------------
-    * 5. Return the status code from the device
+    * 5. Check the status code to see if an error occurred
     * -------------------------------------------------------------- */
-    int statusCode = status & STATUSMASK;
-    return statusCode;
+    /* Any code that is different from READY (-1) is treated as an error */
+    if (statusCode != READY) {
+        /* Release the Swap Pool semaphore */
+        mutex(&swapPoolSemaphore, FALSE);
+
+        /* Terminate the current process */
+        VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
+    }
 }
 
 /************************* PAGE REPLACEMENT ALGORITHM *************************/
@@ -253,7 +262,6 @@ void pager(void) {
     int missingPageNo;                  /* Page number of the missing TLB entry */
     int frameNumber;                    /* Frame number of the page to be swapped in */
     int frameAddress;                   /* Frame address of the page to be swapped in */
-    int status1, status2;               /* Status codes for the flash device operations */ 
 
     /*--------------------------------------------------------------*
     * 1. Obtain the pointer to the Current Process's Support Structure
@@ -317,30 +325,13 @@ void pager(void) {
         setInterrupt(TRUE); 
 
         /* c. Update process's backing store */
-        status1 = flashDeviceOperation(FLASHWRITE, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
-
-        /* Treat any error status from the write operation as a program trap */
-        if (status1 != SUCCESS) {
-            /* Release the Swap Pool semaphore */
-            mutex(&swapPoolSemaphore, FALSE);
-
-            /* Terminate the current process */
-            VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
-        }
+        flashDeviceOperation(FLASHWRITE, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
     }
     
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
-    status2 = flashDeviceOperation(FLASHREAD, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
-
-    /* Treat any error status from the read operation as a program trap */
-    if (status2 != SUCCESS) {
-        mutex(&swapPoolSemaphore, FALSE);
-
-        /* Terminate the current process */
-        VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
-    }
+    flashDeviceOperation(FLASHREAD, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
 
     /*--------------------------------------------------------------*
     * 10. Update the Swap Pool table's entry to reflect frame's new content
