@@ -129,7 +129,7 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
     }
 
     /* Wait for the device to complete the operation */
-    SYSCALL(SYS5CALL, FLASHINT, (asid - 1), operation);
+    int status = SYSCALL(SYS5CALL, FLASHINT, (asid - 1), operation);
 
     /* Re-enable interrupts now that the atomic operation is complete */
     setInterrupt(TRUE);
@@ -142,7 +142,7 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
    /* --------------------------------------------------------------
     * 5. Return the status code from the device
     * -------------------------------------------------------------- */
-    return (devRegArea->devreg[index].d_status);
+    return status;
 }
 
 /************************* PAGE REPLACEMENT ALGORITHM *************************/
