@@ -141,7 +141,6 @@ void getTOD(state_PTR savedState) {
  * Returns      :   None
  */
 void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
-    debug1(0,0,0,0);
     /* ------------------------------------------------------------ *
      * 0. Initialize Local Variables 
      * ------------------------------------------------------------ */
@@ -181,7 +180,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /* ------------------------------------------------------------ *
      * 4. Gain mutual exclusion over the device 
      * ------------------------------------------------------------ */
-    SYSCALL(SYS3CALL, (int) &devSemaphores[index], 0, 0);
+    SYSCALL(SYS3CALL, (unsigned int) &devSemaphores[index], 0, 0);
 
     /* ------------------------------------------------------------ *
      * 5. Transmit each character to the printer
@@ -209,7 +208,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
             savedState->s_v0 = -1 * statusCode;
 
             /* Release the device semaphore */
-            SYSCALL(SYS4CALL, (int) &devSemaphores[index], 0, 0);
+            SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[index], 0, 0);
 
             /* Return control to the instruction after SYSCALL instruction */
             LDST(savedState);
@@ -224,7 +223,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /* ------------------------------------------------------------ *
      * 7. Release device semaphore
      * ------------------------------------------------------------ */
-    SYSCALL(SYS4CALL, (int) &devSemaphores[index], 0, 0); 
+    SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[index], 0, 0); 
 
     /* ------------------------------------------------------------ *
      * 8. Return control to the instruction after SYSCALL instruction
@@ -291,7 +290,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
      * 4. Gain mutual exclusion over the device 
      * ------------------------------------------------------------ */
    /* Note that the transmitter is DEVPERINT (8) index behind the receiver */
-    SYSCALL(SYS3CALL, (int) &devSemaphores[index + DEVPERINT], 0, 0);   
+    SYSCALL(SYS3CALL, (unsigned int) &devSemaphores[index + DEVPERINT], 0, 0);   
 
     /* ------------------------------------------------------------ *
      * 5. Transmit each character to the terminal
@@ -318,7 +317,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
             savedState->s_v0 = -1 * statusCode;
 
             /* Release the device semaphore */
-            SYSCALL(SYS4CALL, (int) &devSemaphores[index + DEVPERINT], 0, 0);
+            SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[index + DEVPERINT], 0, 0);
 
             /* Return control to the instruction after SYSCALL instruction */
             LDST(savedState);
@@ -333,7 +332,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /* ------------------------------------------------------------ *
      * 7. Release device semaphore
      * ------------------------------------------------------------ */
-    SYSCALL(SYS4CALL, (int) &devSemaphores[index + DEVPERINT], 0, 0);
+    SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[index + DEVPERINT], 0, 0);
 
     /* ------------------------------------------------------------ *
      * 8. Return control to the instruction after SYSCALL instruction
@@ -359,7 +358,6 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
  * Returns      :   None
  */
 void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
-    debug2(0,0,0,0);
     /* ------------------------------------------------------------ *
      * 0. Initialize Local Variables 
      * ------------------------------------------------------------ */
@@ -399,7 +397,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /* ------------------------------------------------------------ *
     * 4. Gain mutual exclusion over the device 
     * ------------------------------------------------------------ */
-    SYSCALL(SYS3CALL, (int) &devSemaphores[index], 0, 0);
+    SYSCALL(SYS3CALL, (unsigned int) &devSemaphores[index], 0, 0);
 
     /* ------------------------------------------------------------ *
     * 5. Read each character from the terminal
@@ -431,7 +429,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
             savedState->s_v0 = -1 * statusCode;
 
             /* Release the device semaphore */
-            SYSCALL(SYS4CALL, (int) &devSemaphores[index], 0, 0);
+            SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[index], 0, 0);
 
             /* Return control to the instruction after SYSCALL instruction */
             LDST(savedState);
@@ -462,7 +460,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /* ------------------------------------------------------------ *
      * 7. Release device semaphore
      * ------------------------------------------------------------ */
-    SYSCALL(SYS4CALL, (int) &devSemaphores[index], 0, 0); 
+    SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[index], 0, 0); 
 
     /* ------------------------------------------------------------ *
      * 8. Return control to the instruction after SYSCALL instruction
