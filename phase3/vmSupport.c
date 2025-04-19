@@ -325,13 +325,13 @@ void pager(void) {
         setInterrupt(TRUE); 
 
         /* c. Update process's backing store */
-        flashDeviceOperation(FLASHWRITE, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
+        flashDeviceOperation(currentSupportStruct, FLASHWRITE, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
     }
     
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
-    flashDeviceOperation(FLASHREAD, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
+    flashDeviceOperation(currentSupportStruct, FLASHREAD, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
 
     /*--------------------------------------------------------------*
     * 10. Update the Swap Pool table's entry to reflect frame's new content
