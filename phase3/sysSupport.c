@@ -44,6 +44,18 @@ HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStru
 
 /******************************* SYSCALL IMPLEMENTATIONS *******************************/
 
+void debug1(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
+void debug2(int a, int b, int c, int d) {
+    int i;
+    i = 0;
+    i++;
+}
+
 /* 
  * Function     :   terminateUserProcess
  * Purpose      :   Implement SYS9 to terminate a User Process. First, it will release 
@@ -129,6 +141,7 @@ void getTOD(state_PTR savedState) {
  * Returns      :   None
  */
 void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
+    debug1(0,0,0,0);
     /* ------------------------------------------------------------ *
      * 0. Initialize Local Variables 
      * ------------------------------------------------------------ */
@@ -346,6 +359,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
  * Returns      :   None
  */
 void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
+    debug2(0,0,0,0);
     /* ------------------------------------------------------------ *
      * 0. Initialize Local Variables 
      * ------------------------------------------------------------ */
@@ -383,13 +397,13 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     index = ((TERMINT - OFFSET) * DEVPERINT) + deviceNum;            
 
     /* ------------------------------------------------------------ *
-        * 4. Gain mutual exclusion over the device 
-        * ------------------------------------------------------------ */
+    * 4. Gain mutual exclusion over the device 
+    * ------------------------------------------------------------ */
     SYSCALL(SYS3CALL, (int) &devSemaphores[index], 0, 0);
 
     /* ------------------------------------------------------------ *
-        * 5. Read each character from the terminal
-        * ------------------------------------------------------------ */
+    * 5. Read each character from the terminal
+    * ------------------------------------------------------------ */
     /* Initialize readLength as 0 before read loop */
     readLength = 0;
 
