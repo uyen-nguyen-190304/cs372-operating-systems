@@ -142,7 +142,8 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
    /* --------------------------------------------------------------
     * 5. Return the status code from the device
     * -------------------------------------------------------------- */
-    return status;
+    int statusCode = status & STATUSMASK;
+    return statusCode;
 }
 
 /************************* PAGE REPLACEMENT ALGORITHM *************************/
@@ -355,7 +356,7 @@ void pager(void) {
     setInterrupt(FALSE);
 
     /* Page missingPageNo is now present (V bit) and occupying frame frameAddress */
-    currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = (frameAddress << 12) | VALIDON | DIRTYON;
+    currentSupportStruct->sup_privatePgTbl[missingPageNo].pt_entryLO = frameAddress | VALIDON | DIRTYON;
 
     /*--------------------------------------------------------------*
     * 12. Update the TLB
