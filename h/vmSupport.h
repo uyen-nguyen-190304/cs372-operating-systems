@@ -18,7 +18,7 @@
 
 /* Global variables */
 extern int swapPoolSemaphore;                       /* Semaphore for the Swap Pool Table */
-extern swap_t swapPoolTable[SWAPPOOLSIZE];          /* THE Swap Pool Table: one entry per swap pool frame */
+extern HIDDEN swap_t swapPoolTable[SWAPPOOLSIZE];   /* THE Swap Pool Table: one entry per swap pool frame */
 
 /* Function declarations */
 extern void initSwapStructs(void);                  /* Initialize the Swap Pool table */

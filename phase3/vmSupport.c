@@ -29,7 +29,7 @@
 /************************* VMSUPPORT GLOBAL VARIABLES *************************/
 
 int swapPoolSemaphore;                          /* Semaphore for the Swap Pool Table */
-swap_t swapPoolTable[SWAPPOOLSIZE];             /* THE Swap Pool Table: one entry per swap pool frame */
+HIDDEN swap_t swapPoolTable[SWAPPOOLSIZE];      /* THE Swap Pool Table: one entry per swap pool frame */
 
 /*
  * Function     :   initSwapStructs
@@ -113,11 +113,11 @@ int flashDeviceOperation(int operation, int asid, int frameAddress, int pageNumb
     /* --------------------------------------------------------------
      * 3. Perform the flash device operation
      * --------------------------------------------------------------- */
-    /* Disable interrupts so that COMMAND + SYS5 is atomic */
-    setInterrupt(FALSE);
-    
     /* Write the frame's starting address into device's DATA0 field */
     devRegArea->devreg[index].d_data0 = frameAddress;
+
+    /* Disable interrupts so that COMMAND + SYS5 is atomic */
+    setInterrupt(FALSE);
 
     /* If the operation requested is a READ operation */
     if (operation == FLASHREAD) {
@@ -249,11 +249,11 @@ void pager(void) {
     /* --------------------------------------------------------------
      * 0. Initialize Local Variables 
      * -------------------------------------------------------------- */
-    int         exceptionCode;                  /* Exception code for the TLB exception */
-    int         missingPageNo;                  /* Page number of the missing TLB entry */
-    int         frameNumber;                    /* Frame number of the page to be swapped in */
-    int         frameAddress;                   /* Frame address of the page to be swapped in */
-    int         status1, status2;               /* Status codes for the flash device operations */ 
+    int exceptionCode;                  /* Exception code for the TLB exception */
+    int missingPageNo;                  /* Page number of the missing TLB entry */
+    int frameNumber;                    /* Frame number of the page to be swapped in */
+    int frameAddress;                   /* Frame address of the page to be swapped in */
+    int status1, status2;               /* Status codes for the flash device operations */ 
 
     /*--------------------------------------------------------------*
     * 1. Obtain the pointer to the Current Process's Support Structure
@@ -308,10 +308,10 @@ void pager(void) {
         setInterrupt(FALSE); 
 
         /* a. Update process's Page Table: mark Page Table entry as not valid */
-        swapPoolTable[frameNumber].pte->pt_entryLO &= VALIDOFF;
+        swapPoolTable[frameNumber].pte->pt_entryLO = swapPoolTable[frameNumber].pte->pt_entryLO & VALIDOFF;
 
         /* b. Update the TLB */
-        updateTLB(swapPoolTable[frameNumber].pte);      
+        updateTLB(&(swapPoolTable[frameNumber].pte));      
 
         /* NOTE: Enable interrupt again, end of atomically steps (a & b) */
         setInterrupt(TRUE); 
