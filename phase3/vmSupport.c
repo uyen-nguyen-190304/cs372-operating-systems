@@ -264,7 +264,7 @@ void pager(void) {
     * 2. Determine the case of the TLB exception
     *---------------------------------------------------------------*/    
     /* Get the saved exception state in Current Process's Support Structure for TLB exception */
-    state_t *savedState = &(currentSupportStruct->sup_exceptState[PGFAULTEXCEPT]);
+    state_PTR savedState = &(currentSupportStruct->sup_exceptState[PGFAULTEXCEPT]);
 
     /* Extract the exception code from the saved exception state */
     exceptionCode = ((savedState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;
