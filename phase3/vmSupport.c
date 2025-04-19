@@ -311,7 +311,7 @@ void pager(void) {
         swapPoolTable[frameNumber].pte->pt_entryLO = swapPoolTable[frameNumber].pte->pt_entryLO & VALIDOFF;
 
         /* b. Update the TLB */
-        updateTLB(&(swapPoolTable[frameNumber].pte));      
+        updateTLB(swapPoolTable[frameNumber].pte);      
 
         /* NOTE: Enable interrupt again, end of atomically steps (a & b) */
         setInterrupt(TRUE); 
