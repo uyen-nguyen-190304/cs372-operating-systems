@@ -220,7 +220,7 @@
 #define INDEXMASK           0x80000000          /* mask for Index.P bit */
 
 /* User Process Configuration */
-#define UPROCMAX            2                   /* max concurrent user processes */
+#define UPROCMAX            8                   /* max concurrent user processes */
 #define UPROCTEXTSTART      0x800000B0          /* start address of user text segment */
 #define USERSTACKTOP        0xC0000000          /* user stack top address */
 #define ASIDSHIFT           6                   /* address space identifier shift */
@@ -233,7 +233,7 @@
 /******************************* I/O & Device Constants *****************************/
 
 #define MAXIODEVICES        48                  /* max external I/O devices */
-#define STATUSMASK          0xFF                /* mask for device status field */
+#define STATUSMASK          0x0000000FF         /* mask for device status field */
 #define DEVICEREADY         1                   /* device ready status (printer) */
 
 /* Terminal I/O */
@@ -245,7 +245,7 @@
 #define CHARRECEIVED        5                   /* receiver status: char received */
 #define CHARRECEIVEDSHIFT   8                   /* shift for char received status */
 #define CHARRECEIVEDMASK    0xFF                /* mask to extract the received character */
-#define EOL                 0x0A                /* end-of-line character */
+#define EOL                 0x0000000A          /* end-of-line character */
 
 /* Flash Device I/O */
 #define FLASHREAD           0                   /* constant for flash read operation */
