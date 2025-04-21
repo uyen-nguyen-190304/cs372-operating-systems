@@ -133,7 +133,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     int deviceNum;                      /* Device number (derived from the support struct's ASID) */
     int index;                          /* Index into the device register array and semaphore array */
     unsigned int status;                /* Variable to hold the device status returned by SYS5 */
-    int statusCode;                     /* Extracted status code from the device status */
+    unsigned int statusCode;            /* Extracted status code from the device status */
 
     /* ------------------------------------------------------------ *
      * 1. Retrieve the SYSCALL parameters from the support structure
@@ -177,7 +177,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
         setSTATUS(getSTATUS() & IECOFF);
 
         /* Write the character to DATA0, issue the transmit command in COMMAND */
-        devRegArea->devreg[index].d_data0 = (int) *(virtualAddress + i);
+        devRegArea->devreg[index].d_data0   = *(virtualAddress + i);
         devRegArea->devreg[index].d_command = PRINTCHR;
 
         /* Block until the printer operation completes */
@@ -242,7 +242,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     int deviceNum;                  /* Device number (derived from the support struct's ASID) */                       
     int index;                      /* Index into the device register array and semaphore array */
     unsigned int status;            /* Variable to hold the device status returned by SYS5 */
-    int statusCode;                 /* Extracted status code from the device status */
+    unsigned int statusCode;        /* Extracted status code from the device status */
 
     /* ------------------------------------------------------------ *
      * 1. Retrieve the SYSCALL parameters from the support structure
@@ -350,7 +350,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     int deviceNum;                      /* Device number (derived from the support struct's ASID) */
     int index;                          /* Index into the device register array and semaphore array */
     unsigned int status;                /* Variable to hold the device status returned by SYS5 */
-    int statusCode;                     /* Extracted status code from the device status */
+    unsigned int statusCode;            /* Extracted status code from the device status */
     int readLength;                     /* Number of characters read from the terminal */
 
     /* ------------------------------------------------------------ *
@@ -477,7 +477,7 @@ void VMgeneralExceptionHandler(void) {
     /* ---------------------------------------------------------- *
      * 3. Decode exception code out of Cause register
      * ---------------------------------------------------------- */
-    int exceptionCode;
+    unsigned int exceptionCode;
     exceptionCode = ((savedState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;
 
     /* ---------------------------------------------------------- *
@@ -518,7 +518,7 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
     /* ------------------------------------------------------------ *
      * 2. Read the SYSCALL number from register a0
      * ------------------------------------------------------------ */
-    unsigned int sysNum = savedState->s_a0;
+    int sysNum = savedState->s_a0;
 
     /* ------------------------------------------------------------ *
      * 3. Route to the appropriate handler
@@ -528,19 +528,23 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
         case SYS9CALL:
             /* SYS9: terminate this U-Proc */
             terminateUserProcess(currentSupportStruct);
+            break;
 
         case SYS10CALL:
             /* SYS10: Return Time-Of-Day to user */
             getTOD(savedState);
+            break;
 
         case SYS11CALL:
             /* SYS11: Write buffer to printer */
             writeToPrinter(savedState, currentSupportStruct);
-            
+            break;
+
         case SYS12CALL:
             /* SYS12: Write buffer to printer */
             writeToTerminal(savedState, currentSupportStruct);
-
+            break;
+            
         case SYS13CALL:
             /* SYS13: Read from terminal into user buffer */
             readFromTerminal(savedState, currentSupportStruct);

@@ -65,7 +65,6 @@ void test() {
     /* Initialize the masterSemaphore */
     masterSemaphore = 0;                                    /* For synchronization */
 
-
     /* --------------------------------------------------------------
      * 2. Setup the Initial Processor State Template for each U-Proc
      * --------------------------------------------------------------- */

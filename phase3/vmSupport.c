@@ -15,12 +15,7 @@
 
 #include "../h/const.h"
 #include "../h/types.h"
-#include "../h/pcb.h"
-#include "../h/asl.h"
-#include "../h/scheduler.h"
 #include "../h/exceptions.h"
-#include "../h/interrupts.h"
-#include "../h/initial.h"
 #include "../h/initProc.h"
 #include "../h/vmSupport.h"
 #include "../h/sysSupport.h"
@@ -155,62 +150,6 @@ void flashDeviceOperation(support_t *currentSupportStruct, int operation, int as
     }
 }
 
-/************************* PAGE REPLACEMENT ALGORITHM *************************/
-
-/*
- * Function     :   pageReplacement 
- * Purpose      :   An optimization to the default page replacement given by Pandos
- *                  to select a physical frame in the Swap Pool to satisfy the
- *                  page-in request. First, it scans for a free frame. If no free
- *                  frame available, it will evict using round-robin
- * Parameters   :   None
- * Returns      :   int - Index into Swap Pool Table of chosen victim frame
- */
-int pageReplacement(void) {
-    /* --------------------------------------------------------------
-     * 0. Local variables declaration
-     * -------------------------------------------------------------- */    
-    /* Static hand pointer to keep track of next candidate for round-robin */
-    static int hand = 0;
-    
-    /* Initialize a victim variable */
-    int victim = -1;
-
-    /* --------------------------------------------------------------
-     * 1. Search for Free Frame
-     * -------------------------------------------------------------- */   
-    /* First, scan through the entire Swap Pool for a free frame */
-    int i;
-    for (i = 0; i < SWAPPOOLSIZE; i++) {
-        /* Compute the candidate index (wrap around via modulo) */
-        int index = (hand + i) % SWAPPOOLSIZE;
-
-        /* If we found a free frame */
-        if (swapPoolTable[index].asid == EMPTYFRAME) {
-            /* Choose it (why not?) */
-            victim = index;
-
-            /* Advance hand to the slot after the one we just took */
-            hand = (index + 1) % SWAPPOOLSIZE;
-
-            /* Return the index to the free frame in the Swap Pool we just found */
-            return victim;
-        }
-    }
-
-    /* --------------------------------------------------------------
-     * 2. Since none available, evict through round-robin
-     * -------------------------------------------------------------- */   
-    /* No free frame was found. We need to evict the frame at hand */
-    victim = hand;
-
-    /* Advance hand for next round (round-robin) */
-    hand = (hand + 1) % SWAPPOOLSIZE;
-
-    /* Return the index into swapPoolTable of the chosen victim frame */
-    return victim;
-}
-
 /************************* TLB UPDATE FUNCTION *************************/
 
 /*
@@ -258,10 +197,10 @@ void pager(void) {
     /* --------------------------------------------------------------
      * 0. Initialize Local Variables 
      * -------------------------------------------------------------- */
-    int exceptionCode;                  /* Exception code for the TLB exception */
+    unsigned int exceptionCode;         /* Exception code for the TLB exception */
     int missingPageNo;                  /* Page number of the missing TLB entry */
-    int frameNumber;                    /* Frame number of the page to be swapped in */
     int frameAddress;                   /* Frame address of the page to be swapped in */
+    static int frameNumber;             /* Frame number of the page to be swapped in */
 
     /*--------------------------------------------------------------*
     * 1. Obtain the pointer to the Current Process's Support Structure
@@ -292,14 +231,13 @@ void pager(void) {
     /*--------------------------------------------------------------*
     * 5. Determine the missing page number, found in saved exception state's entryHI
     *---------------------------------------------------------------*/ 
-    missingPageNo = ((savedState->s_entryHI) & VPNMASK) >> VPNSHIFT;
-    missingPageNo = missingPageNo % NUMPAGES;   /* Ensure the page number is within bounds */
+    missingPageNo = (((savedState->s_entryHI) & VPNMASK) >> VPNSHIFT) % NUMPAGES;
 
     /*--------------------------------------------------------------*
     * 6. Pick a frame from the Swap Pool
     *---------------------------------------------------------------*/ 
     /* Frame is chosen by the page replacement algorithm provided above */
-    frameNumber  = pageReplacement();                         
+    frameNumber  = (frameNumber + 1) % SWAPPOOLSIZE;                      
 
     /* Calculate the frame address */
     frameAddress = (frameNumber * PAGESIZE) + SWAPPOOLSTART;    
@@ -319,8 +257,9 @@ void pager(void) {
         swapPoolTable[frameNumber].pte->pt_entryLO = swapPoolTable[frameNumber].pte->pt_entryLO & VALIDOFF;
 
         /* b. Update the TLB */
-        updateTLB(swapPoolTable[frameNumber].pte);      
-
+        /* updateTLB(swapPoolTable[frameNumber].pte); */     
+        TLBCLR();
+        
         /* NOTE: Enable interrupt again, end of atomically steps (a & b) */
         setInterrupt(TRUE); 
 
@@ -352,7 +291,8 @@ void pager(void) {
     /*--------------------------------------------------------------*
     * 12. Update the TLB
     *---------------------------------------------------------------*/ 
-    updateTLB(&(currentSupportStruct->sup_privatePgTbl[missingPageNo]));
+    /* updateTLB(&(currentSupportStruct->sup_privatePgTbl[missingPageNo])); */
+    TLBCLR();
     
     /* NOTE: Enable interrupt again, end of atomically step (11 & 12) */
     setInterrupt(TRUE);

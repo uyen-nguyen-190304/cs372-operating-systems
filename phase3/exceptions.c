@@ -509,6 +509,9 @@ void syscallExceptionHandler() {
         /* SYS8: Get support data */
         case SYS8CALL:
             getSupportData();
+
+        default: 
+            programTrapExceptionHandler();
     }
 }
 
