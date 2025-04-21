@@ -409,8 +409,8 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
         /* Mask off low byte to get status code from device status */
         statusCode = status & STATUSMASK;
 
-            /* Check if the receiver of the terminal reports a "Character Received" status (5) */
-            if (statusCode != CHARRECEIVED) {
+        /* Check if the receiver of the terminal reports a "Character Received" status (5) */
+        if (statusCode != CHARRECEIVED) {
             /* If not, set v0 to the negative of the status code to signal an error */
             savedState->s_v0 = -1 * statusCode;
 
