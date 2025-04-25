@@ -168,4 +168,12 @@ typedef struct swap_t {
 	pte_t			*pte;				/* pointer to occupant's page table entry */
 } swap_t;
 
+/************************* DELAY DAEMON STRUCTURE *****************************/
+
+typedef struct delayd_t {
+	struct delayd_t *d_next;			/* next element on the delay list */
+	int 			d_wakeTime;			/* time to wake up */
+	support_t 		*d_supStruct;		/* pointer to support struct */
+} delayd_t;
+
 #endif /* TYPES */
