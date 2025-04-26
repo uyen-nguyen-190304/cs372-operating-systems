@@ -126,6 +126,8 @@ typedef struct support_t {
 	pte_t			sup_privatePgTbl[32];		/* private page table  */
 	int				sup_stackTLB[500];			/* stack area for the process's TLB exception handler */
 	int				sup_stackGen[500];			/* stack area for the process's Support Level general exception handler */	
+
+	int 			sup_privateSemaphore;		/* private semaphore for the process */
 } support_t;
 
 /************************* PROCESS CONTROL BLOCK STRUCTURE *****************************/
@@ -174,6 +176,6 @@ typedef struct delayd_t {
 	struct delayd_t *d_next;			/* next element on the delay list */
 	int 			d_wakeTime;			/* time to wake up */
 	support_t 		*d_supStruct;		/* pointer to support struct */
-} delayd_t;
+} delayd_t, delayd_PTR;
 
 #endif /* TYPES */
