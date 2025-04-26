@@ -260,12 +260,16 @@
 #define SWAPPOOLSIZE        2 * UPROCMAX        /* swap pool's size (frames) */
 #define EMPTYFRAME          -1                  /* indicator of empty frame in swap pool */
 
+/******************************* Delay Constants *****************************/
+
+#define DELAYASID           0                   /* ASID for delay process */
+#define DELAYTIME          1000                 /* delay time in milliseconds */
+
 /******************************* Miscellaneous Constants *****************************/
 
 #define MAXSTRINGLENGTH     128                 /* max length for terminal I/O strings */
 #define SUCCESS             1                   /* general success indicator */
 #define CREATESUCCESS       0                   /* code for successfully create u-proc */
 #define CACHED              0                   /* signal that the updated TLB is cached in TLB */
-
 
 #endif  /* CONSTS */
