@@ -10,6 +10,7 @@
 #include "../h/const.h"
 #include "../h/types.h"
 #include "../h/delayDaemon.h"
+#include "/usr/include/umps3/umps/libumps.h"
 
 /******************************* GLOBAL VARIABLES *****************************/
 
@@ -133,7 +134,7 @@ void initADL(void) {
     initialState.s_entryHI = ALLOFF | (DELAYASID << ASIDSHIFT);
 
     /* Create the Delay Daemon (Support Structure = NULL) */
-    status = SYSCALL(SYS1CALL, (unsigned int) &initialState, NULL, 0);
+    status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) NULL, 0);
 
     /* Check if the Delay Daemon was created successfully */
     if (status != CREATESUCCESS) {
@@ -153,7 +154,7 @@ void delayDaemon(void) {
         SYSCALL(SYS7CALL, DELAYTIME, 0, 0); 
 
         /* Obtain mutual exclusion over the ADL */
-        mutex(&ADLsemaphore, TRUE);
+        SYSCALL(SYS3CALL, (unsigned int) &ADLsemaphore, 0, 0);
 
         /* Get the current time */
         STCK(currentTime);
@@ -170,7 +171,7 @@ void delayDaemon(void) {
         }
 
         /* Release mutual exclusion over the ADL */
-        mutex(&ADLsemaphore, FALSE);
+        SYSCALL(SYS4CALL, (unsigned int) &ADLsemaphore, 0, 0);
     }
 }
 
@@ -181,7 +182,6 @@ void delay(support_t *currentSupportStruct) {
      * 0. Local Variables Declaration
      *--------------------------------------------------------------- */
     int delayTime;                      /* Delay time in milliseconds */
-    int status;                         /* Return code from SYS1 to create the Delay Daemon */
     cpu_t currentTime;                  /* Current time in microseconds */
     delayd_t *delayd;                   /* Pointer to the delay descriptor */
 
@@ -193,7 +193,7 @@ void delay(support_t *currentSupportStruct) {
     /* Check for the validity of the */
     if (delayTime < 0) {
         /* Be brutal: SYS9 on bad argument */
-        SYSCALL(SYS9CALL, currentSupportStruct, 0, 0);
+        SYSCALL(SYS9CALL, 0, 0, 0);
     }
 
     /* --------------------------------------------------------------
@@ -212,11 +212,11 @@ void delay(support_t *currentSupportStruct) {
         SYSCALL(SYS4CALL, (unsigned int) &ADLsemaphore, 0, 0);
 
         /* If no delay descriptor is available, be brutal: SYS9 on bad argument */
-        SYSCALL(SYS9CALL, currentSupportStruct, 0, 0);
+        SYSCALL(SYS9CALL, 0, 0, 0);
     }
 
     /* Else, populate the delayed node */
-    stck(currentTime);
+    STCK(currentTime);
     delayd->d_wakeTime  = currentTime + (delayTime * UNITCONVERT); /* Convert to microseconds */
     delayd->d_supStruct = currentSupportStruct;
 
