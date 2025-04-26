@@ -56,6 +56,9 @@ void test() {
     /* Initialize Swap Pool table and its semaphore */
     initSwapStructs();                                      /* Defined in vmSupport.c */   
     
+    /* Initialize the Active Delay List */
+    initADL();                                             /* Defined in delayDaemon.c */
+    
     /* Initialize each (potentially) sharable peripheral I/O device semaphore */
     int i;
     for (i = 0; i < MAXIODEVICES; i++) {
