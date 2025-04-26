@@ -39,7 +39,7 @@ all: printerTest.umps strConcat.umps terminalReader.umps asciiArt.umps \
     terminalTest1.umps terminalTest2.umps terminalTest3.umps terminalTest4.umps \
     terminalTest5.umps terminalTest6.umps terminalTest7.umps terminalTest8.umps \
     timeOfDay.umps swapStress.umps \
-    test1.umps test2.umps
+    test1.umps test2.umps delayTest.umps \
 
 %.o: %.c $(TDEFS)
 	$(CC) $(CFLAGS) $<
