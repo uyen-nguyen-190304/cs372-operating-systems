@@ -176,6 +176,6 @@ typedef struct delayd_t {
 	struct delayd_t *d_next;			/* next element on the delay list */
 	int 			d_wakeTime;			/* time to wake up */
 	support_t 		*d_supStruct;		/* pointer to support struct */
-} delayd_t, delayd_PTR;
+} delayd_t;
 
 #endif /* TYPES */
