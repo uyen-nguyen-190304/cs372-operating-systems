@@ -24,6 +24,7 @@
 #include "../h/initProc.h"
 #include "../h/vmSupport.h"
 #include "../h/sysSupport.h"
+#include "../h/delayDaemon.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
 /**************************** SUPPORT LEVEL GLOBAL VARIABLES ****************************/ 
