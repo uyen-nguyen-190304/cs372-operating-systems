@@ -550,20 +550,6 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
             readFromTerminal(savedState, currentSupportStruct);
             break;
 
-        case SYS14CALL:
-            diskPut(currentSupportStruct);
-            break;
-
-        case SYS15CALL:
-            diskGet(currentSupportStruct);
-            break;
-        
-
-        case SYS18CALL:
-            /* SYS18: Delay Facility */
-            delay(currentSupportStruct);
-            break;
-
         default:
             /* For anything else, treat as *fatal* program trap */
             VMprogramTrapExceptionHandler(currentSupportStruct);
