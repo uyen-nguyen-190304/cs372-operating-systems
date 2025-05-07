@@ -9,4 +9,6 @@ void initADL(void);
 /* The Daemon process itself (infinite loop) */
 void delayDaemon(void);
 
+void delay(support_t *currentSupportStruct);
+
 #endif /* DELAYDAEMON_H */

@@ -176,6 +176,11 @@
 #define SYS11CALL           11                  /* write to printer */
 #define SYS12CALL           12                  /* write to terminal */
 #define SYS13CALL           13                  /* read from terminal */
+#define SYS14CALL           14                  /* read from disk */
+#define SYS15CALL           15                  /* write to disk */
+#define SYS16CALL           16                  /* read from flash */
+#define SYS17CALL           17                  /* write to flash */
+#define SYS18CALL           18                  /* delay process */
 
 /******************************* Exception Handling Constants *****************************/
 
@@ -260,10 +265,25 @@
 #define SWAPPOOLSIZE        2 * UPROCMAX        /* swap pool's size (frames) */
 #define EMPTYFRAME          -1                  /* indicator of empty frame in swap pool */
 
+/******************************* Disk Constants *****************************/
+
+#define CYLINDERSHIFT       16                  /* shift to retrieve cylinder number */
+#define HEADMASK            0x0000FF00          /* mask for head number */
+#define HEADSHIFT           8                   /* shift to retrieve head number */
+#define SECTORMASK          0x000000FF          /* mask for sector number */
+#define DISKSTART           0x20020000          /* start address of disk */
+#define SEEKCYL             2                   /* seek cylinder number */
+#define READBLK             3                   /* disk read block command */
+#define WRITEBLK            4                   /* disk write block command */
+#define CYLNUMSHIFT         8                   /* shift for cylinder number */
+#define SECTORNUMSHIFT      8                  /* shift for sector number */
+#define HEADNUMSHIFT        16                  /* shift for head number */
+
 /******************************* Delay Constants *****************************/
 
 #define DELAYASID           0                   /* ASID for delay process */
-#define DELAYTIME          1000                 /* delay time in milliseconds */
+#define DELAYTIME           1000                /* delay time in milliseconds */
+#define UNITCONVERT         1000000             /* unit conversion factor (milliseconds to seconds) */
 
 /******************************* Miscellaneous Constants *****************************/
 
