@@ -19,18 +19,18 @@
 #define	GETTIME			6
 
 /* level 1 SYS calls */
-#define TERMINATE		9
-#define GET_TOD			10
-#define WRITEPRINTER	11
-#define WRITETERMINAL 	12
-#define READTERMINAL	13
-#define DISK_GET		14
-#define DISK_PUT		15
-#define	FLASH_GET		16
-#define FLASH_PUT		17
-#define DELAY			18
-#define PSEMVIRT		19
-#define VSEMVIRT		20
+#define TERMINATE       9
+#define GET_TOD         10
+#define WRITEPRINTER    11
+#define WRITETERMINAL   12
+#define READTERMINAL    13
+#define DISK_PUT        14
+#define DISK_GET        15
+#define FLASH_PUT       16
+#define FLASH_GET       17
+#define DELAY           18
+#define PSEMVIRT        19
+#define VSEMVIRT        20
 
 #define SEG0			0x00000000
 #define SEG1			0x40000000
