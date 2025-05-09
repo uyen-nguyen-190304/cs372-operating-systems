@@ -36,11 +36,18 @@
 
 /******************************* FUNCTION DECLARATIONS *******************************/ 
 
-HIDDEN void terminateUserProcess(support_t *currentSupportStruct);                    /* SYS9  */
+/* Phase 3 */
+HIDDEN void terminateUserProcess(void);                                               /* SYS9  */
 HIDDEN void getTOD(state_PTR savedState);                                             /* SYS10 */
 HIDDEN void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct);    /* SYS11 */
 HIDDEN void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct);   /* SYS12 */
 HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct);  /* SYS13 */
+
+/* Phase 4 */
+extern void diskPut(support_t *currentSupportStruct);                                 /* SYS14 */
+extern void diskGet(support_t *currentSupportStruct);                                 /* SYS15 */
+extern void flashPut(support_t *currentSupportStruct);                                /* SYS16 */
+extern void flashGet(support_t *currentSupportStruct);                                /* SYS17 */
 
 /******************************* SYSCALL IMPLEMENTATIONS *******************************/
 
@@ -53,33 +60,15 @@ HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStru
  * Parameters   :   currentSupportStruct - pointer to the support structure of the U-Proc to be terminated
  * Returns      :   None
  */
-void terminateUserProcess(support_t *currentSupportStruct)
+void terminateUserProcess(void)
 {
     /* ---------------------------------------------------------- *
-     * 0.  Declare local variable
-     * ---------------------------------------------------------- */
-    int asid = currentSupportStruct->sup_asid;   /* 1‑8 */
-
-    /* ---------------------------------------------------------- *
-     * 1. Release all device semaphores this U-Proc may hold
-     * ---------------------------------------------------------- */
-    int line;
-    /* Plus 1 since for each terminal, there are a transmitter and a receiver */
-    for (line = 0; line < DEVTYPES + 1; line++) {
-        int index = (line * DEVPERINT) + (asid - 1);
-        if (devSemaphores[index] == 0) {
-            /* Release it */
-            SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[index], 0, 0);
-        }
-    }
-
-    /* ---------------------------------------------------------- *
-     * 2. V the masterSemaphore so InitProc can wake up
+     * 1. V the masterSemaphore so InitProc can wake up
      * ---------------------------------------------------------- */
     SYSCALL(SYS4CALL, (unsigned int) &masterSemaphore, 0, 0);
 
     /* ---------------------------------------------------------- *
-     * 3. Finally, invoke SYS2 to terminate this U-Proc
+     * 2. Finally, invoke SYS2 to terminate this U-Proc
      * ---------------------------------------------------------- */
     SYSCALL(SYS2CALL, 0, 0, 0);                         /* never returns */
 }
@@ -148,7 +137,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
     if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
-        terminateUserProcess(currentSupportStruct);
+        terminateUserProcess();
     } 
 
     /* ------------------------------------------------------------ *
@@ -257,7 +246,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
     if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
-        terminateUserProcess(currentSupportStruct);
+        terminateUserProcess();
     }
 
     /* ------------------------------------------------------------ *
@@ -365,7 +354,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /* Validate that the address to read is in the user segment (KUSEG) */
     if ((int) virtualAddress < KUSEG) {
         /* Be brutal: SYS9 on bad argument */
-        terminateUserProcess(currentSupportStruct);
+        terminateUserProcess();
     }
 
     /* ------------------------------------------------------------ *
@@ -527,7 +516,7 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
     switch (sysNum) {
         case SYS9CALL:
             /* SYS9: terminate this U-Proc */
-            terminateUserProcess(currentSupportStruct);
+            terminateUserProcess();
             break;
 
         case SYS10CALL:
@@ -550,6 +539,26 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
             readFromTerminal(savedState, currentSupportStruct);
             break;
 
+        case SYS14CALL:
+            /* SYS14: Read from disk into user buffer */
+            diskGet(currentSupportStruct);
+            break;
+
+        case SYS15CALL:
+            /* SYS15: Write to disk from user buffer */
+            diskPut(currentSupportStruct);
+            break;
+
+        case SYS16CALL:
+            /* SYS16: Read from flash into user buffer */
+            flashGet(currentSupportStruct);
+            break;
+
+        case SYS17CALL:
+            /* SYS17: Write to flash from user buffer */
+            flashPut(currentSupportStruct);
+            break;
+
         default:
             /* For anything else, treat as *fatal* program trap */
             VMprogramTrapExceptionHandler(currentSupportStruct);
@@ -567,5 +576,5 @@ void VMprogramTrapExceptionHandler(support_t *currentSupportStruct) {
     /* ------------------------------------------------------------ *
      * 1. Immediately kill the U-Proc (cleanup & SYS2)
      * ------------------------------------------------------------ */
-    terminateUserProcess(currentSupportStruct);         /* Should never return */
+    terminateUserProcess();         /* Should never return */
 }
