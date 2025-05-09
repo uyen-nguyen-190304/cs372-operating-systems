@@ -1,47 +1,64 @@
 /******************************* DELAYDAEMON.c ***************************************
  * 
- * [DESCRIPTION LATER]
+ * The Delay Daemon provides timed suspension for user processes. When a process invokes 
+ * the `delay(milliseconds)` syscall (SYS18), it will be enqueded onto an Active Delay 
+ * List (ADL) sorted by the wake up time and then blocked on its private semaphore. 
+ * The Delay Daemon will periodically wake every 100 milliseconds to check the ADL, 
+ * unblock any processes whose delay time has expired, and recylces their descriptors
+ * back to the free list. The ADL is protected by a semaphore to ensure mutual exclusion
+ * between the Delay Daemon and any user processes that may be modifying the list.
  * 
  * Written by  : Uyen Nguyen
- * Last update : 2025/04/25
+ * Last update : 2025/05/09
  * 
  ***********************************************************************************/
 
 #include "../h/const.h"
 #include "../h/types.h"
+#include "../h/sysSupport.h"
 #include "../h/delayDaemon.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
 /******************************* GLOBAL VARIABLES *****************************/
 
 /* Semphore for mutual exclusion on the Active Delay List (ADL) */
-HIDDEN int ADLsemaphore = 1;                    
+HIDDEN int ADLsemaphore;                    
 
 /* Head pointer for the Active Delay List */
-HIDDEN delayd_t *delay_h;
+HIDDEN delayd_t *delayd_h;
 
 /* Head pointer for the free list of delay descriptors */
-HIDDEN delayd_t *delayFree_h;
+HIDDEN delayd_t *delaydFree_h;
+
+/* Static table of delay descriptors */
+HIDDEN delayd_t delayEvents[UPROCMAX + 2];  /* +2 for dummy head & tail */ 
 
 /******************************* ADL UTILITY FUNCTIONS *****************************/
 
 /*
- * Function     : allocateDelayd
+ * Function     :   allocateDelayd
+ * Purpose      :   Allocate a delay descriptor from the free list. It will pop the first
+ *                  descriptor from the free list (delaydFree_h) and initialize it.
+ *                  The new descriptor will be initialized with a wake time of 0 and
+ *                  a support structure pointer of NULL.
+ * Parameters   :   None
+ * Returns      :   Pointer to the allocated delay descriptor, 
+ *                  or NULL if no free descriptors are available.
  */
-delayd_t *allocateDelayd(void) {
+HIDDEN delayd_t *allocateDelayd(void) {
     /* Check if the free list is empty */
-    if (delayFree_h == NULL) {
+    if (delaydFree_h == NULL) {
         /* If no delay descriptor available, return NULL */
         return NULL;  
     }
 
-    /* Pop the first descriptor from the free list */
-    delayd_t *newNode = delayFree_h;
-    delayFree_h = delayFree_h->d_next;
+    /* Else, pop the first descriptor from the free list */
+    delayd_t *newNode = delaydFree_h;
+    delaydFree_h = delaydFree_h->d_next;        /* Advance the free head */
 
     /* Initialize the new delay descriptor */
-    newNode->d_next = NULL;
-    newNode->d_wakeTime = 0;
+    newNode->d_next      = NULL;
+    newNode->d_wakeTime  = 0;
     newNode->d_supStruct = NULL;
 
     /* Return the new delay descriptor */
@@ -49,21 +66,28 @@ delayd_t *allocateDelayd(void) {
 }
 
 /*
- * Function     : freeDelayd
+ * Function     :   freeDelayd
+ * Purpose      :   Free a delay descriptor by pushing it back onto the free list.
+ * Parameters   :   node - pointer to the delay descriptor to be freed
+ * Returns      :   None
  */
-void freeDelayd(delayd_t *node) {
-    /* Push the node onto the free list */
-    node->d_next = delayFree_h;
-    delayFree_h = node;
+HIDDEN void freeDelayd(delayd_t *node) {
+    /* Push the node back onto the free list */
+    node->d_next = delaydFree_h;
+    delaydFree_h = node;                        /* Update the head accordingly */
 }
 
 /*
- * Function     : insertDelayd
+ * Function     :   insertDelayd
+ * Purpose      :   Insert a delay descriptor into the Active Delay List (ADL) in sorted order.
+ *                  The ADL is sorted by wake time in descending order.
+ * Parameters   :   newNode - pointer to the delay descriptor to be inserted
+ * Returns      :   None
  */
-void insertDelayd(delayd_t *newNode) {
-    /* Local variables to help with insertion */
-    delayd_t *prev = delay_h;
-    delayd_t *curr = delay_h->d_next;
+HIDDEN void insertDelayd(delayd_t *newNode) {
+    /* Local pointers to help with insertion */
+    delayd_t *prev = delayd_h;
+    delayd_t *curr = delayd_h->d_next;
 
     /* Tranverse until we find the correct insertion point */
     while (curr != NULL && newNode->d_wakeTime > curr->d_wakeTime) {
@@ -79,79 +103,76 @@ void insertDelayd(delayd_t *newNode) {
 /******************************* ADL INITIALIZATION *****************************/
 
 /*
- * Function     : initADL
- * Purpose      : Initialize the Active Delay List (ADL) and create the Delay Daemon.
- * Parameters   : None
- * Returns      : None
+ * Function     :   initADL
+ * Purpose      :   Initialize the Active Delay List (ADL) and set up the Delay Daemon.
+ *                  This function sets up the free list of delay descriptors, initializes
+ *                  the dummy head and tail of the ADL, and creates the Delay Daemon process.
+ * Parameters   :   None
+ * Returns      :   None
  */
 void initADL(void) {
-    /* --------------------------------------------------------------
-     * 0. Initialize Local Variables 
-     *--------------------------------------------------------------- */
-    int status;                                 /* Return code from SYS1 to create the Delay Daemon */
-    state_t initialState;                       /* Initial state for the Delay Daemon */
-    static delayd_t delayEvents[UPROCMAX + 1];  /* Delay descriptor table (+1 for dummy tail) */
+    /* Local variable: initial state for Delay Daemon */
+    state_t initialState;                       
 
     /* Calculate ramtop to then get the penultimate frame for Delay Daemon's SP */
     devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR; 
     memaddr ramtop = devRegArea->rambase + devRegArea->ramsize;
 
-    /* --------------------------------------------------------------
-     * 1. Free List Setup
-     *--------------------------------------------------------------- */
+    /* Initialize the ADL semaphore for mutual exclusion */
+    ADLsemaphore = 1;
+
+    /* Build the free list of delay descriptors */
     int i;
-    for (i = 0; i < UPROCMAX; i++) {
-        /* Add each element from the static array to the free list */
-        delayEvents[i].d_next = &delayEvents[i + 1];
+    for (i = 1; i < UPROCMAX; i++) {
+        delayEvents[i].d_next = &(delayEvents[i + 1]);
     }
-    /* Last element points to NULL */
-    delayEvents[UPROCMAX - 1].d_next = NULL; 
+    delayEvents[UPROCMAX].d_next = NULL; /* Last node in the free list */
+    delaydFree_h = &delayEvents[1]; /* The first node in the free list */
 
-    /* Set the head of the free list */
-    delayFree_h = &delayEvents[0];
+    /* Set up the ADL dummy head (node 0) */
+    delayd_h = &delayEvents[0];
+    delayd_h->d_wakeTime    = 0;
+    delayd_h->d_supStruct   = NULL;
+    delayd_h->d_next = &(delayEvents[UPROCMAX + 1]);    /* Point to the dummy tail */
 
-    /* --------------------------------------------------------------
-     * 2. Initialize the Active List dummy tail
-     *--------------------------------------------------------------- */
-    delay_h              = &delayEvents[UPROCMAX];
-    delay_h->d_next      = NULL; 
-    delay_h->d_wakeTime  = INFINITE;        /* Dummy sentinel never wake up */
-    delay_h->d_supStruct = NULL;
+    /* Set up the ADL dummy tail (node UPROCMAX + 1) */
+    delayd_h->d_next->d_wakeTime  = INFINITE;           /* This will never wake */
+    delayd_h->d_next->d_supStruct = NULL;   
+    delayd_h->d_next->d_next      = NULL;               /* No next node */                  
 
-    /* --------------------------------------------------------------
-     * 3. Initialize and Lauch (SYS1) the Delay Daemon
-     *--------------------------------------------------------------- */
-    /* The PC (and s_t9) is set to the delayDaemon function */
+    /* Initialize Delay Daemon's initial state */
     initialState.s_pc = initialState.s_t9 = (memaddr) delayDaemon;
-
-    /* The SP is set to an unused frame at the end of the RAM */
-    initialState.s_sp = ramtop - 2 * PAGESIZE;          /* penultimate frame */
-
-    /* The Status register is set to kernel-mode with all interrupts enabled */
-    initialState.s_status = ALLOFF | IEPON | IMON | PLTON;
-
-    /* The EntryHi.ASID is set the the kernel ASID: zero */
-    initialState.s_entryHI = ALLOFF | (DELAYASID << ASIDSHIFT);
+    initialState.s_sp = ramtop - PAGESIZE;                      /* penultimate frame */
+    initialState.s_status = ALLOFF | IEPON | IMON | PLTON;      /* kernel mode, all interrupts enabled */
+    initialState.s_entryHI = ALLOFF | (DELAYASID << ASIDSHIFT); /* Set ASID to 0 */
 
     /* Create the Delay Daemon (Support Structure = NULL) */
-    status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) NULL, 0);
+    int status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) NULL, 0);
 
     /* Check if the Delay Daemon was created successfully */
     if (status != CREATESUCCESS) {
-        /* If not, terminate the process */
-        SYSCALL(SYS2CALL, 0, 0, 0);
+        SYSCALL(SYS9CALL, 0, 0, 0); /* Terminate the process */
     }
 }
 
 /******************************* DELAY DAEMON *****************************/
 
+/*
+ * Function     :   delayDaemon
+ * Purpose      :   The Delay Daemon process. It periodically wakes up every 100 milliseconds
+ *                  to check the Active Delay List (ADL) for any processes that need to be woken.
+ *                  It will unblock those processes and recycle their delay descriptors back
+ *                  to the free list.
+ * Parameters   :   None
+ * Returns      :   None 
+ */
 void delayDaemon(void) {
     /* Local variable to store current time */
     cpu_t currentTime;
 
     while (TRUE) {
-        /* Execute a SYS7: wait for the next 100 milisecond */
-        SYSCALL(SYS7CALL, DELAYTIME, 0, 0); 
+        /* Execute SYS7: Sleep for 100ms */
+        SYSCALL(SYS7CALL, 0, 0, 0); 
 
         /* Obtain mutual exclusion over the ADL */
         SYSCALL(SYS3CALL, (unsigned int) &ADLsemaphore, 0, 0);
@@ -159,17 +180,21 @@ void delayDaemon(void) {
         /* Get the current time */
         STCK(currentTime);
 
-        /* Loop thorugh the ADL active list to find node whose wake up time has passed */
-        while ((delay_h != NULL) && (delay_h->d_wakeTime <= currentTime)) {
-            /* Perform a SYS4 on that U-proc's private semaphore */
-            SYSCALL(SYS4CALL, (unsigned int) &(delay_h->d_supStruct->sup_privateSemaphore), 0, 0);
+        /* Loop through the ADL to find node whose wake up time has passed */
+        delayd_t *curr = delayd_h->d_next;   
+        while ((curr!= NULL) && (curr->d_wakeTime <= currentTime)) {
+            /* Wake sleeping process by V on its private semaphore */
+            SYSCALL(SYS4CALL, (unsigned int) &(curr->d_supStruct->sup_privateSemaphore), 0, 0);
 
-            /* Deallocate the delay descriptor node and return it to the free list */
-            delayd_t *expired = delay_h;
-            delay_h = delay_h->d_next;
-            freeDelayd(expired);
+            /* Remove the descriptor from the ADL */
+            delayd_h->d_next = curr->d_next; 
+            
+            /* Recylce the descriptor back to the free pool */
+            freeDelayd(curr);              
+
+            /* Move to next descriptor to continue to check */
+            curr = delayd_h->d_next;        
         }
-
         /* Release mutual exclusion over the ADL */
         SYSCALL(SYS4CALL, (unsigned int) &ADLsemaphore, 0, 0);
     }
@@ -177,70 +202,65 @@ void delayDaemon(void) {
 
 /******************************* SYS18 IMPLEMENTATION *****************************/
 
+/*
+    * Function     :   delay
+    * Purpose      :   The implementation of the delay syscall (SYS18). This function will
+    *                  allocate a delay descriptor, insert it into the Active Delay List (ADL),
+    *                  and block the process on its private semaphore until woken by the Delay Daemon.
+    * Parameters   :   currentSupportStruct - pointer to the support structure of the calling process
+    * Returns      :   None 
+ */
 void delay(support_t *currentSupportStruct) {
-    /* --------------------------------------------------------------
-     * 0. Local Variables Declaration
-     *--------------------------------------------------------------- */
-    int delayTime;                      /* Delay time in milliseconds */
-    cpu_t currentTime;                  /* Current time in microseconds */
-    delayd_t *delayd;                   /* Pointer to the delay descriptor */
+    /* Local variable to store current time */
+    cpu_t currentTime;
 
-    /* --------------------------------------------------------------
-     * 1. Get the delay time from the support structure
-     *--------------------------------------------------------------- */
-    delayTime = currentSupportStruct->sup_exceptState[DELAYTIME].s_a0;
+    /* Extract delay duration (ms) from register a0 */
+    int delayTime = currentSupportStruct->sup_exceptState[DELAYTIME].s_a0;
 
-    /* Check for the validity of the */
+    /* Defensive programming: Ensure that the delayTime is nonnegative*/
     if (delayTime < 0) {
-        /* Be brutal: SYS9 on bad argument */
+        /* Invalid argument: Call SYS9 on the process */
         SYSCALL(SYS9CALL, 0, 0, 0);
     }
 
-    /* --------------------------------------------------------------
-     * 2. Obtain mutual exclusion over the ADL
-     *--------------------------------------------------------------- */
+    /* Obtain mutual exclusion over the ADL */
     SYSCALL(SYS3CALL, (unsigned int) &ADLsemaphore, 0, 0);  
 
-    /* --------------------------------------------------------------
-     * 3. Allocate a delay descriptor from the free list
-     *--------------------------------------------------------------- */
-    /* Allocate a delay_event descriptor node from the free list */
-    delayd = allocateDelayd();
+    /* Allocate a delay descriptor from the free list */
+    delayd_t *delayd  = allocateDelayd();
 
+    /* Check if the allocation was successful */
     if (delayd == NULL) { 
-        /* First, release mutual exclusion over the ADL */
+        /* If not, first release the lock on ADL semaphore */
         SYSCALL(SYS4CALL, (unsigned int) &ADLsemaphore, 0, 0);
 
-        /* If no delay descriptor is available, be brutal: SYS9 on bad argument */
+        /* Then, call SYS9 to terminate the process */
         SYSCALL(SYS9CALL, 0, 0, 0);
     }
 
-    /* Else, populate the delayed node */
+    /* Else, populate the delayed node with correct wakeTime and supportStruct*/
     STCK(currentTime);
-    delayd->d_wakeTime  = currentTime + (delayTime * UNITCONVERT); /* Convert to microseconds */
+    delayd->d_wakeTime  = currentTime + ((cpu_t) delayTime * UNITCONVERT); /* Convert to microseconds */
     delayd->d_supStruct = currentSupportStruct;
 
     /* Insert it into its proper location on the active list */
     insertDelayd(delayd);
 
-    /* --------------------------------------------------------------
-     * 4. Release mutual exclusion over the ADL
-     *--------------------------------------------------------------- */
-    /* Disable interrupts so that */
+    /* Disable interrupts so that we can V on ADL semaphore and P on the proc's private semaphore atomically */
     setSTATUS(getSTATUS() & IECOFF);
 
     /* Release the ADL semaphore */
     SYSCALL(SYS4CALL, (unsigned int) &ADLsemaphore, 0, 0);
 
-    /* P on U-proc's private semaphore */
+    /* Block process on its private semaphore until woken by daemon */
     SYSCALL(SYS3CALL, (unsigned int) &(currentSupportStruct->sup_privateSemaphore), 0, 0);
 
-    /* Re-enable interrupts now that the atomic operation is complete */
+    /* Re-enable interrupts now that the atomic operations are complete */
     setSTATUS(getSTATUS() | IECON);
 
-    /* When woken, restore process context and return to user */
+    /* Restore the process's state to the one saved in the support structure */
     LDST(&(currentSupportStruct->sup_exceptState[GENERALEXCEPT]));
-    } 
+} 
 
 
 /******************************* END OF DELAYDAEMON.c *******************************/
