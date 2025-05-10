@@ -44,7 +44,7 @@ HIDDEN void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct
 HIDDEN void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct);   /* SYS12 */
 HIDDEN void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct);  /* SYS13 */
 
-/* Phase 5*/
+/* Phase 5 */
 extern void delay(support_t *currentSupportStruct);                                   /* SYS18 */
 
 /******************************* SYSCALL IMPLEMENTATIONS *******************************/
