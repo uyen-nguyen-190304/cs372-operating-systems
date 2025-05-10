@@ -9,7 +9,7 @@
  * return control to the faulting process.
  * 
  * Written by  : Uyen Nguyen
- * Last update : 2025/04/17
+ * Last update : 2025/05/10
  * 
  ***********************************************************************************/
 
@@ -21,6 +21,9 @@
 #include "../h/sysSupport.h"
 #include "../h/deviceSupportDMA.h"
 #include "/usr/include/umps3/umps/libumps.h"
+
+/* Extern function as flashOperation got moved to deviceSupportDMA.c (Phase 4) */
+extern void flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation);
 
 /************************* VMSUPPORT GLOBAL VARIABLES *************************/
 
@@ -108,7 +111,7 @@ int pageReplacement(void) {
     int i;
     for (i = 0; i < SWAPPOOLSIZE; i++) {
         /* Compute the candidate index (wrap around via modulo) */
-        int index = (hand + i) % SWAPPOOLSIZE;
+        int index = (hand + i) % (SWAPPOOLSIZE);
 
         /* If we found a free frame */
         if (swapPoolTable[index].asid == EMPTYFRAME) {
@@ -116,7 +119,7 @@ int pageReplacement(void) {
             victim = index;
 
             /* Advance hand to the slot after the one we just took */
-            hand = (index + 1) % SWAPPOOLSIZE;
+            hand = (index + 1) % (SWAPPOOLSIZE);
 
             /* Return the index to the free frame in the Swap Pool we just found */
             return victim;
@@ -130,7 +133,7 @@ int pageReplacement(void) {
     victim = hand;
 
     /* Advance hand for next round (round-robin) */
-    hand = (hand + 1) % SWAPPOOLSIZE;
+    hand = (hand + 1) % (SWAPPOOLSIZE);
 
     /* Return the index into swapPoolTable of the chosen victim frame */
     return victim;
@@ -206,7 +209,7 @@ void pager(void) {
     * 3. If the Cause if a TLB-Modification exception, treat as Program Trap
     *---------------------------------------------------------------*/    
     if (exceptionCode == TLBMODIFICATION) {
-        VMprogramTrapExceptionHandler();          /* Terminate the process */
+        VMprogramTrapExceptionHandler(currentSupportStruct);          /* Terminate the process */
     }
 
     /*--------------------------------------------------------------*
