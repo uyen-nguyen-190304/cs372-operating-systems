@@ -23,7 +23,7 @@
 #include "/usr/include/umps3/umps/libumps.h"
 
 /* Extern function as flashOperation got moved to deviceSupportDMA.c (Phase 4) */
-extern void flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation);
+extern int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation);
 
 /************************* VMSUPPORT GLOBAL VARIABLES *************************/
 
@@ -252,13 +252,31 @@ void pager(void) {
         setInterrupt(TRUE); 
 
         /* c. Update process's backing store */
-        flashOperation(currentSupportStruct, frameAddress, swapPoolTable[frameNumber].asid - 1, swapPoolTable[frameNumber].vpn, FLASHWRITE);
+        int status1 = flashOperation(currentSupportStruct, frameAddress, swapPoolTable[frameNumber].asid - 1, swapPoolTable[frameNumber].vpn, FLASHWRITE);
+        
+        /* Any code that is different from READY (1) will be treated as error */
+        if (status1 != READY) {
+            /* The flash operation failed, first release the Swap Pool semaphore */
+            mutex(&swapPoolSemaphore, FALSE);
+
+            /* Then, terminate the process */
+            VMprogramTrapExceptionHandler(currentSupportStruct);          /* Terminate the process */
+        }
     }
     
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
-    flashOperation(currentSupportStruct, frameAddress, currentSupportStruct->sup_asid - 1, missingPageNo, FLASHREAD);
+    int status2 = flashOperation(currentSupportStruct, frameAddress, currentSupportStruct->sup_asid - 1, missingPageNo, FLASHREAD);
+
+    /* Any code that is different from READY (1) will be treated as error */
+    if (status2 != READY) {
+        /* The flash operation failed, first release the Swap Pool semaphore */
+        mutex(&swapPoolSemaphore, FALSE);
+
+        /* Then, terminate the process */
+        VMprogramTrapExceptionHandler(currentSupportStruct);          /* Terminate the process */
+    }
 
     /*--------------------------------------------------------------*
     * 10. Update the Swap Pool table's entry to reflect frame's new content
