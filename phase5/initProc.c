@@ -52,14 +52,14 @@ void test() {
     static support_t supportStructArray[UPROCMAX + 1];      /* Support structure for each U-Proc */
 
     /* --------------------------------------------------------------
-     * 1. Initialize Phase 3 Data Structure 
+     * 1. Initialize Phase 3 + 5 Data Structure 
      * --------------------------------------------------------------- */
     /* Initialize Swap Pool table and its semaphore */
     initSwapStructs();                                      /* Defined in vmSupport.c */   
     
-    /* Initialize the Active Delay List */
-    initADL();                                             /* Defined in delayDaemon.c */
-    
+    /* Initialize Active Delay List (ADL) */
+    initADL();
+
     /* Initialize each (potentially) sharable peripheral I/O device semaphore */
     int i;
     for (i = 0; i < MAXIODEVICES; i++) {
