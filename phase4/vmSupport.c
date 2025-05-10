@@ -252,30 +252,32 @@ void pager(void) {
         setInterrupt(TRUE); 
 
         /* c. Update process's backing store */
-        int status1 = flashOperation(currentSupportStruct, frameAddress, swapPoolTable[frameNumber].asid - 1, swapPoolTable[frameNumber].vpn, FLASHWRITE);
+        int flashIndex1 = ((int) swapPoolTable[frameNumber].asid) - 1;
+        int status1 = flashOperation(currentSupportStruct, frameAddress, flashIndex1, swapPoolTable[frameNumber].vpn, FLASHWRITE);
         
         /* Any code that is different from READY (1) will be treated as error */
         if (status1 != READY) {
-            /* The flash operation failed, first release the Swap Pool semaphore */
+            /* If flash operation failed, first release the Swap Pool semaphore */
             mutex(&swapPoolSemaphore, FALSE);
 
             /* Then, terminate the process */
-            VMprogramTrapExceptionHandler(currentSupportStruct);          /* Terminate the process */
+            VMprogramTrapExceptionHandler(currentSupportStruct);
         }
     }
     
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
-    int status2 = flashOperation(currentSupportStruct, frameAddress, currentSupportStruct->sup_asid - 1, missingPageNo, FLASHREAD);
+    int flashIndex2 = ((int) currentSupportStruct->sup_asid) - 1;
+    int status2 = flashOperation(currentSupportStruct, frameAddress, flashIndex2, missingPageNo, FLASHREAD);
 
     /* Any code that is different from READY (1) will be treated as error */
     if (status2 != READY) {
-        /* The flash operation failed, first release the Swap Pool semaphore */
+        /* If flash operation failed, first release the Swap Pool semaphore */
         mutex(&swapPoolSemaphore, FALSE);
 
         /* Then, terminate the process */
-        VMprogramTrapExceptionHandler(currentSupportStruct);          /* Terminate the process */
+        VMprogramTrapExceptionHandler(currentSupportStruct);  
     }
 
     /*--------------------------------------------------------------*

@@ -20,7 +20,8 @@ SUPDIR = $(UMPS3_DIR_PREFIX)/share/umps3
 
 DEFS = ../h/const.h ../h/types.h ../h/pcb.h ../h/asl.h \
 	../h/initial.h ../h/interrupts.h ../h/scheduler.h ../h/exceptions.h \
-	../h/initProc.h ../h/vmSupport.h ../h/sysSupport.h ../h/deviceSupportDMA.h \
+	../h/initProc.h ../h/vmSupport.h ../h/sysSupport.h \
+	../h/deviceSupportDMA.h \
 	$(INCDIR)/libumps.h Makefile
 
 OBJS = asl.o pcb.o \
@@ -40,14 +41,15 @@ AS = mipsel-linux-gnu-as -KPIC
 EF = umps3-elf2umps
 UDEV = umps3-mkdev
 
-# Device generation variables
-TERMINALS := $(addprefix term, $(addsuffix .umps, $(shell seq 0 7)))
-PRINTERS  := $(addprefix print, $(addsuffix .umps, $(shell seq 0 7)))
-DISKS := disk0.umps disk1.umps
-
-
 #main target
-all: kernel.core.umps $(TERMINALS) $(PRINTERS) $(DISKS)
+all: kernel.core.umps disk0.umps disk1.umps
+
+# use umps3-mkdev to create the disk0 device
+disk0.umps:
+	$(UDEV) -d disk0.umps
+
+disk1.umps:
+	$(UDEV) -d disk1.umps
 
 kernel.core.umps: kernel
 	$(EF) -k kernel
@@ -57,14 +59,6 @@ kernel: $(OBJS)
 
 %.o: %.c $(DEFS)
 	$(CC) $(CFLAGS) $<
-
-# Rule to generate .umps devices (termX.umps, printX.umps)
-%.umps:
-	$(UDEV) -d $@
-
-# Rule to generate disk devices
-disk%.umps:
-	$(UDEV) -d $@
 
 
 clean:
