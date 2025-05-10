@@ -2,30 +2,40 @@
 #include "h/print.h"
 #include "h/localLibumps.h"
 
-char buf[32];
-
 /* I'm bored so I will just trigger every support-level SYSCALL */
 void main() {
-    unsigned int now;
-    int r;
+    unsigned int time1, time2;
+    char buf[32];
+    int status;
 
     /* SYS10: GET_TOD */
-    now = SYSCALL(GET_TOD, 0, 0, 0);
-    SYSCALL(WRITETERMINAL, "GET_TOD OK\n", 11, 0);
+    time1 = SYSCALL(GET_TOD, 0, 0, 0);
+    print(WRITETERMINAL, "GET_TOD started\n");
 
     /* SYS11: WRITEPRINTER */
-    SYSCALL(WRITEPRINTER, "WRITEPRINTER OK\n", 16, 0);
+    print(WRITETERMINAL, "WRITEPRINTER OK\n");
 
     /* SYS12: WRITETERMINAL */
-    SYSCALL(WRITETERMINAL, "WRITETERMINAL OK\n", 17, 0);
+    print(WRITETERMINAL, "WRITETERMINAL OK\n");
 
     /* SYS13: READTERMINAL */
-    SYSCALL(WRITETERMINAL, "Enter text: ", 12, 0);
-    r = SYSCALL(READTERMINAL, (int)&buf[0], 0, 0);
-    buf[r] = '\0';
-    SYSCALL(WRITETERMINAL, "You entered: ", 13, 0);
-    SYSCALL(WRITETERMINAL, buf,           r,  0);
-    SYSCALL(WRITETERMINAL, "\n",           1,  0);
+	print(WRITETERMINAL, "Terminal Read Test starts\n");
+	print(WRITETERMINAL, "Enter a string: ");
+
+    status = SYSCALL(READTERMINAL, (int)&buf[0], 0, 0);
+    buf[status] = EOS;
+
+    print(WRITETERMINAL, "\nYou entered: ");
+    print(WRITETERMINAL, &buf[0]);
+    print(WRITETERMINAL, "\nWRITETERMINAL OK\n");
+
+    /* SYS10 (again): So now that the GET_TOD should work */
+    time2 = SYSCALL(GET_TOD, 0, 0, 0);
+    if (time2 < time1) {
+        print(WRITETERMINAL, "Something went horribly wrong if this printed out...\n");
+    } else {
+        print(WRITETERMINAL, "GET_TOD OK\n");
+    }
 
     /* Normal exit */
     SYSCALL(TERMINATE, 0, 0, 0);
