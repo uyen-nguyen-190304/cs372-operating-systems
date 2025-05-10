@@ -231,9 +231,10 @@ int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flas
     /* Retrieve the maximum number of blocks for the device */
     int maxBlock = devRegArea->devreg[flashIndex].d_data1;
 
-    /* Defensive check: Check for virtual address and blocknumber */
-    if ((blockNumber >= maxBlock) || ((int) logicalAddress < KUSEG)) {
-        SYSCALL(SYS9CALL, 0, 0, 0); /* Terminate the U-proc */
+    /* Defensive check: Check for blocknumber */
+    if ((blockNumber < 0) || (blockNumber >= maxBlock)) {
+        /* Terminate the U-proc on bad arguments */
+        SYSCALL(SYS9CALL, 0, 0, 0); 
     }
 
     /* Gain mutual exclusive over the device's device register */
@@ -255,23 +256,22 @@ int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flas
     }
 
     /* Wait for the device to complete the operation */
-    SYSCALL(SYS5CALL, FLASHINT, flashNumber, operation);
+    int status = SYSCALL(SYS5CALL, FLASHINT, flashNumber, operation);
 
     /* Re-enable interrupts now that the atomic operation is complete */
     setSTATUS(getSTATUS() | IECON);
-
-    /* Get the status code from the device's register */
-    int statusCode = devRegArea->devreg[flashIndex].d_status;
 
     /* Release the device semaphore */
     SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[flashIndex], 0, 0);
 
     /* Check the status code to see if an error occurred */
-    if (statusCode != READY) {
-        /* Status code = negative */
-        statusCode = -1 * statusCode;
-    } 
-    return statusCode;
+    if (status != READY) {
+        /* If yes, Status code = negative */
+        status = -1 * status;
+    }
+
+    /* Return the status value for further action back at function that called it */ 
+    return status;
 }
 
 /*

@@ -9,7 +9,7 @@
  * return control to the faulting process.
  * 
  * Written by  : Uyen Nguyen
- * Last update : 2025/05/10
+ * Last update : 2025/04/17
  * 
  ***********************************************************************************/
 
@@ -22,7 +22,7 @@
 #include "../h/deviceSupportDMA.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
-/* Extern function as flashOperation got moved to deviceSupportDMA.c (Phase 4) */
+/* For phase 4: move the flashOperation to deviceSupportDMA.c */
 extern int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation);
 
 /************************* VMSUPPORT GLOBAL VARIABLES *************************/
@@ -252,32 +252,25 @@ void pager(void) {
         setInterrupt(TRUE); 
 
         /* c. Update process's backing store */
-        int flashIndex1 = ((int) swapPoolTable[frameNumber].asid) - 1;
-        int status1 = flashOperation(currentSupportStruct, frameAddress, flashIndex1, swapPoolTable[frameNumber].vpn, FLASHWRITE);
-        
-        /* Any code that is different from READY (1) will be treated as error */
-        if (status1 != READY) {
-            /* If flash operation failed, first release the Swap Pool semaphore */
-            mutex(&swapPoolSemaphore, FALSE);
+        int status1 = flashOperation(currentSupportStruct, frameAddress, swapPoolTable[frameNumber].asid - 1, swapPoolTable[frameNumber].vpn, FLASHWRITE);  
 
-            /* Then, terminate the process */
-            VMprogramTrapExceptionHandler(currentSupportStruct);
+        /* Check the status code returned to see if an error occurred */
+
+        if (status1 != READY) {
+            /* Terminate the current process */
+            VMprogramTrapExceptionHandler(currentSupportStruct); 
         }
     }
     
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
-    int flashIndex2 = ((int) currentSupportStruct->sup_asid) - 1;
-    int status2 = flashOperation(currentSupportStruct, frameAddress, flashIndex2, missingPageNo, FLASHREAD);
-
-    /* Any code that is different from READY (1) will be treated as error */
+    int status2 = flashOperation(currentSupportStruct, frameAddress, currentSupportStruct->sup_asid - 1, missingPageNo, FLASHREAD);
+    
+    /* Check the status code returned to see if an error occurred */
     if (status2 != READY) {
-        /* If flash operation failed, first release the Swap Pool semaphore */
-        mutex(&swapPoolSemaphore, FALSE);
-
-        /* Then, terminate the process */
-        VMprogramTrapExceptionHandler(currentSupportStruct);  
+        /* Terminate the current process */
+        VMprogramTrapExceptionHandler(currentSupportStruct); 
     }
 
     /*--------------------------------------------------------------*
