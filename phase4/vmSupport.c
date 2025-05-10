@@ -108,7 +108,7 @@ int pageReplacement(void) {
     int i;
     for (i = 0; i < SWAPPOOLSIZE; i++) {
         /* Compute the candidate index (wrap around via modulo) */
-        int index = (hand + i) % (SWAPPOOLSIZE);
+        int index = (hand + i) % SWAPPOOLSIZE;
 
         /* If we found a free frame */
         if (swapPoolTable[index].asid == EMPTYFRAME) {
@@ -116,7 +116,7 @@ int pageReplacement(void) {
             victim = index;
 
             /* Advance hand to the slot after the one we just took */
-            hand = (index + 1) % (SWAPPOOLSIZE);
+            hand = (index + 1) % SWAPPOOLSIZE;
 
             /* Return the index to the free frame in the Swap Pool we just found */
             return victim;
@@ -130,7 +130,7 @@ int pageReplacement(void) {
     victim = hand;
 
     /* Advance hand for next round (round-robin) */
-    hand = (hand + 1) % (SWAPPOOLSIZE);
+    hand = (hand + 1) % SWAPPOOLSIZE;
 
     /* Return the index into swapPoolTable of the chosen victim frame */
     return victim;
@@ -206,7 +206,7 @@ void pager(void) {
     * 3. If the Cause if a TLB-Modification exception, treat as Program Trap
     *---------------------------------------------------------------*/    
     if (exceptionCode == TLBMODIFICATION) {
-        VMprogramTrapExceptionHandler(currentSupportStruct);          /* Terminate the process */
+        VMprogramTrapExceptionHandler();          /* Terminate the process */
     }
 
     /*--------------------------------------------------------------*
@@ -249,7 +249,7 @@ void pager(void) {
         setInterrupt(TRUE); 
 
         /* c. Update process's backing store */
-        flashOperation(currentSupportStruct, frameAddress, swapPoolSemaphore[frameNumber].asid - 1, swapPoolTable[frameNumber].vpn, FLASHWRITE);
+        flashOperation(currentSupportStruct, frameAddress, swapPoolTable[frameNumber].asid - 1, swapPoolTable[frameNumber].vpn, FLASHWRITE);
     }
     
     /*--------------------------------------------------------------*

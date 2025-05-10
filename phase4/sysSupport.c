@@ -37,7 +37,7 @@
 /******************************* FUNCTION DECLARATIONS *******************************/ 
 
 /* Phase 3 */
-HIDDEN void terminateUserProcess(void);                                               /* SYS9  */
+HIDDEN void terminateUserProcess(int *semaphore);                                     /* SYS9  */
 HIDDEN void getTOD(state_PTR savedState);                                             /* SYS10 */
 HIDDEN void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct);    /* SYS11 */
 HIDDEN void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct);   /* SYS12 */
@@ -60,11 +60,20 @@ extern void flashGet(support_t *currentSupportStruct);                          
  * Parameters   :   currentSupportStruct - pointer to the support structure of the U-Proc to be terminated
  * Returns      :   None
  */
-void terminateUserProcess(void)
+void terminateUserProcess(int *semaphore)
 {
     /* ---------------------------------------------------------- *
-     * 1. V the masterSemaphore so InitProc can wake up
+     * 1. Release any device semaphores held by the U-Proc
      * ---------------------------------------------------------- */
+    if (semaphore != NULL) {
+        /* Release the device semaphore */
+        SYSCALL(SYS4CALL, (unsigned int) semaphore, 0, 0);
+    }
+
+    /* ---------------------------------------------------------- *
+     * 2. Perform a V operation on the masterSemaphore
+     * ---------------------------------------------------------- */
+    /* Release the master semaphore to signal InitProc */
     SYSCALL(SYS4CALL, (unsigned int) &masterSemaphore, 0, 0);
 
     /* ---------------------------------------------------------- *
@@ -137,7 +146,7 @@ void writeToPrinter(state_PTR savedState, support_t *currentSupportStruct) {
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
     if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
-        terminateUserProcess();
+        terminateUserProcess(NULL);
     } 
 
     /* ------------------------------------------------------------ *
@@ -246,7 +255,7 @@ void writeToTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /* Validate that the address is in the user segment (KUSEG) and that string length is within bound */
     if (((int) virtualAddress < KUSEG) || (stringLength < 0) || (stringLength > MAXSTRINGLENGTH)) {
         /* Be brutal: SYS9 on bad argument(s) */
-        terminateUserProcess();
+        terminateUserProcess(NULL);
     }
 
     /* ------------------------------------------------------------ *
@@ -354,7 +363,7 @@ void readFromTerminal(state_PTR savedState, support_t *currentSupportStruct) {
     /* Validate that the address to read is in the user segment (KUSEG) */
     if ((int) virtualAddress < KUSEG) {
         /* Be brutal: SYS9 on bad argument */
-        terminateUserProcess();
+        terminateUserProcess(NULL);
     }
 
     /* ------------------------------------------------------------ *
@@ -463,21 +472,27 @@ void VMgeneralExceptionHandler(void) {
      * ---------------------------------------------------------- */
     state_PTR savedState = &(currentSupportStruct->sup_exceptState[GENERALEXCEPT]);
 
+    /* ------------------------------------------------------------ *
+     * 3. Advance the PC past the SYSCALL instruction
+     * ------------------------------------------------------------ */
+    /* Increment the PC by WORDLEN (4) to avoid infinite SYSCALL loop */
+    savedState->s_pc = savedState->s_pc + WORDLEN;
+
     /* ---------------------------------------------------------- *
-     * 3. Decode exception code out of Cause register
+     * 4. Decode exception code out of Cause register
      * ---------------------------------------------------------- */
     unsigned int exceptionCode;
     exceptionCode = ((savedState->s_cause) & GETEXCEPTIONCODE) >> CAUSESHIFT;
 
     /* ---------------------------------------------------------- *
-     * 4. Dispatch control to either SYSCALL or program trap handler
+     * 5. Dispatch control to either SYSCALL or program trap handler
      * ---------------------------------------------------------- */
     if (exceptionCode == SYSCALLCONST) {
         /* Pass control to Support Level's SYSCALL exception handler */
         VMsyscallExceptionHandler(savedState, currentSupportStruct);
     } else {
         /* Pass control to Support Level's Program Trap exception handler */
-        VMprogramTrapExceptionHandler(currentSupportStruct);
+        VMprogramTrapExceptionHandler();
     }
 }
 
@@ -499,24 +514,18 @@ void VMgeneralExceptionHandler(void) {
  */
 void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportStruct) {
     /* ------------------------------------------------------------ *
-     * 1. Advance the PC past the SYSCALL instruction
-     * ------------------------------------------------------------ */
-    /* Increment the PC by WORDLEN (4) to avoid infinite SYSCALL loop */
-    savedState->s_pc = savedState->s_pc + WORDLEN;
-
-    /* ------------------------------------------------------------ *
-     * 2. Read the SYSCALL number from register a0
+     * 1. Read the SYSCALL number from register a0
      * ------------------------------------------------------------ */
     int sysNum = savedState->s_a0;
 
     /* ------------------------------------------------------------ *
-     * 3. Route to the appropriate handler
+     * 2. Route to the appropriate handler
      * ------------------------------------------------------------ */
     /* Dispatch the SYSCALL based on sysNum */
     switch (sysNum) {
         case SYS9CALL:
             /* SYS9: terminate this U-Proc */
-            terminateUserProcess();
+            terminateUserProcess(NULL);
             break;
 
         case SYS10CALL:
@@ -561,7 +570,7 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
 
         default:
             /* For anything else, treat as *fatal* program trap */
-            VMprogramTrapExceptionHandler(currentSupportStruct);
+            VMprogramTrapExceptionHandler();
     }
 }
 
@@ -569,12 +578,12 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
  * Function     :   VMprogramTrapExceptionHandler
  * Purpose      :   Handle any support-level program trap as fatal to the U-Proc.
  *                  Simply invoke terminateUserProcess (SYS9) to kill this U-Proc.
- * Parameters   :   currentSupportStruct - user’s support struct
+ * Parameters   :   None
  * Returns      :   None
  */
-void VMprogramTrapExceptionHandler(support_t *currentSupportStruct) {
+void VMprogramTrapExceptionHandler(void) {
     /* ------------------------------------------------------------ *
      * 1. Immediately kill the U-Proc (cleanup & SYS2)
      * ------------------------------------------------------------ */
-    terminateUserProcess();         /* Should never return */
+    terminateUserProcess(NULL);         /* Should never return */
 }
