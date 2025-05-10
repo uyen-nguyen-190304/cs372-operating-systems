@@ -3,7 +3,7 @@
  * [DESCRIPTION LATER]
  * 
  * Written by  : Uyen Nguyen
- * Last update : 2025/05/06
+ * Last update : 2025/05/10
  * 
  ***********************************************************************************/
 
@@ -42,9 +42,6 @@ void diskPut(support_t *currentSupportStruct) {
         SYSCALL(SYS9CALL, 0, 0, 0);
     }
 
-    /* Gain mutual exclusion over the device's device register */
-    SYSCALL(SYS3CALL, (unsigned int) &devSemaphores[diskNumber], 0, 0);
-
     /* Compute the DMA buffer address */
     memaddr *dmaBufferAddress = (memaddr *) (DISKSTART + (diskNumber * PAGESIZE));
 
@@ -54,6 +51,8 @@ void diskPut(support_t *currentSupportStruct) {
         dmaBufferAddress[i] = logicalAddress[i];
     }
 
+    /* Gain mutual exclusion over the device's device register */
+    SYSCALL(SYS3CALL, (unsigned int) &devSemaphores[diskNumber], 0, 0);
 
     /* Covert sector number to CHS */
     int cylinder = sectionNumber / (maxHead * maxSector);
@@ -91,6 +90,9 @@ void diskPut(support_t *currentSupportStruct) {
         setSTATUS(getSTATUS() | IECON);
     } 
 
+    /* Release mutual exclusion over the device's device register */
+    SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[diskNumber], 0, 0);
+
     /* If any of the operation was unsuccessful */
     if (status != SUCCESS) {
         /* Set v0 to the negative of the status code to signal an error */
@@ -99,9 +101,6 @@ void diskPut(support_t *currentSupportStruct) {
         /* Set v0 to the number of bytes written */
         currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = status;
     }
-
-    /* Release mutual exclusion over the device's device register */
-    SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[diskNumber], 0, 0);
 
     /* Return control to the instruction after SYSCALL instruction */
     LDST(&(currentSupportStruct->sup_exceptState[GENERALEXCEPT]));
@@ -131,11 +130,11 @@ void diskGet(support_t *currentSupportStruct) {
         SYSCALL(SYS9CALL, 0, 0, 0);
     }
 
-    /* Gain mutual exclusion over the device's device register */
-    SYSCALL(SYS3CALL, (unsigned int) &devSemaphores[diskNumber], 0, 0);
-
     /* Compute the DMA buffer address */
     memaddr *dmaBufferAddress = (memaddr *) (DISKSTART + (diskNumber * PAGESIZE));
+
+    /* Gain mutual exclusion over the device's device register */
+    SYSCALL(SYS3CALL, (unsigned int) &devSemaphores[diskNumber], 0, 0);
 
     /* Covert sector number to CHS */
     int cylinder = sectionNumber / (maxHead * maxSector);
@@ -173,11 +172,11 @@ void diskGet(support_t *currentSupportStruct) {
         setSTATUS(getSTATUS() | IECON);
     }
 
-    /* If any of the operation was unsuccessful */
-    if (status != SUCCESS) {
-        /* Set v0 to the negative of the status code to signal an error */
-        currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = -1 * status;
-    } else {
+    /* Release mutual exclusion over the device's device register */
+    SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[diskNumber], 0, 0);
+
+    /* If the disk read operation was successful */
+    if (status == SUCCESS) {
         /* Copy the data from the device's DMA buffer -> U-proc's address space */
         int i;
         for (i = 0; i < (PAGESIZE / WORDLEN); i++) {
@@ -186,10 +185,10 @@ void diskGet(support_t *currentSupportStruct) {
 
         /* Set v0 to the number of bytes read */
         currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = status;
+    } else {
+        /* Set v0 to the negative of the status code to signal an error */
+        currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = -1 * status;
     }
-
-    /* Release mutual exclusion over the device's device register */
-    SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[diskNumber], 0, 0);
 
     /* Return control to the instruction after SYSCALL instruction */
     LDST(&(currentSupportStruct->sup_exceptState[GENERALEXCEPT]));
@@ -202,11 +201,14 @@ void diskGet(support_t *currentSupportStruct) {
  * 
  * 
  */
-void flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation) {
-   /* Retrieve important things */
+int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation) {
+    /* Pointer to the device register area */
+    devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
+
+    /* Compute the index into the device register array */
     int flashIndex = ((FLASHINT - OFFSET) * DEVPERINT) + flashNumber;
 
-    devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
+    /* Retrieve the maximum number of blocks for the device */
     int maxBlock = devRegArea->devreg[flashIndex].d_data1;
 
     /* Defensive programming: Check for virtual address and blocknumber */
@@ -218,7 +220,7 @@ void flashOperation(support_t *currentSupportStruct, int logicalAddress, int fla
     SYSCALL(SYS3CALL, (unsigned int) &devSemaphores[flashIndex], 0, 0);
 
     /* Write the frame's starting address into device's DATA0 field */
-    devRegArea->devreg[flashIndex].d_data0 = (unsigned int) logicalAddress;
+    devRegArea->devreg[flashIndex].d_data0 = logicalAddress;
 
     /* Disable interrupt so that COMMAND + SYS5 is atomic */
     setSTATUS(getSTATUS() & IECOFF);
@@ -243,15 +245,11 @@ void flashOperation(support_t *currentSupportStruct, int logicalAddress, int fla
 
     /* Check the status code to see if an error occurred */
     if (status != READY) {
-        /* Set v0 to the negative of the status code to signal an error */
-        currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = -1 * status;
-    } else {
-        /* Set v0 to the number of bytes written */
-        currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = status;
-    }
+        /* Status code = negative */
+        status = -1 * status;
+    } 
+    return status;
 }
-
-
 
 
 void flashPut(support_t *currentSupportStruct) {
@@ -259,6 +257,12 @@ void flashPut(support_t *currentSupportStruct) {
     memaddr *logicalAddress = (memaddr *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
     int flashNumber         = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
     int blockNumber         = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a3;
+
+    /* Defensive programming: check the virtual address */
+    if ((int) logicalAddress < KUSEG) {
+        /* Terminate the U-proc */
+        SYSCALL(SYS9CALL, 0, 0, 0);
+    }
 
     /* Calculate the DMA buffer address */
     memaddr *dmaBufferAddress = (memaddr *) (FLASHSTART + (flashNumber * PAGESIZE));
@@ -270,7 +274,10 @@ void flashPut(support_t *currentSupportStruct) {
     }
 
     /* Perform the flash operation */
-    flashOperation(currentSupportStruct, (int) dmaBufferAddress, flashNumber, blockNumber, FLASHWRITE);
+    int status = flashOperation(currentSupportStruct, (int) dmaBufferAddress, flashNumber, blockNumber, FLASHWRITE);
+
+    /* Place the status code into v0 */
+    currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = status;
 
     /* Return control to the instruction after SYSCALL instruction */
     LDST(&(currentSupportStruct->sup_exceptState[GENERALEXCEPT]));
@@ -285,17 +292,27 @@ void flashGet(support_t *currentSupportStruct) {
     int flashNumber         = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
     int blockNumber         = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a3;
 
+    /* Defensive programming: check the virtual address */
+    if ((int) logicalAddress < KUSEG) {
+        /* Terminate the U-proc */
+        SYSCALL(SYS9CALL, 0, 0, 0);
+    }
+
     /* Calculate the DMA buffer address */
     memaddr *dmaBufferAddress = (memaddr *) (FLASHSTART + (flashNumber * PAGESIZE));
 
     /* Perform the flash operation */
-    flashOperation(currentSupportStruct, (int) dmaBufferAddress, flashNumber, blockNumber, FLASHREAD);
+    int status = flashOperation(currentSupportStruct, (int) dmaBufferAddress, flashNumber, blockNumber, FLASHREAD);
 
     /* Copy the data from the device's DMA buffer -> U-proc's address space */
     int i;
     for (i = 0; i < (PAGESIZE / WORDLEN); i++) {
         logicalAddress[i] = dmaBufferAddress[i];
     }
+
+    /* Place the status code into v0 before return */
+    currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = status;
+
 
     /* Return control to the instruction after SYSCALL instruction */
     LDST(&(currentSupportStruct->sup_exceptState[GENERALEXCEPT]));

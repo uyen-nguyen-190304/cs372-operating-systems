@@ -20,6 +20,6 @@ extern void diskPut(support_t *currentSupportStruct); /* Disk put operation */
 extern void diskGet(support_t *currentSupportStruct); /* Disk get operation */
 extern void flashPut(support_t *currentSupportStruct); /* Flash put operation */
 extern void flashGet(support_t *currentSupportStruct); /* Flash get operation */
-extern void flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation);
+extern int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation);
 
 #endif /* DEVICESUPPORTDMA */
