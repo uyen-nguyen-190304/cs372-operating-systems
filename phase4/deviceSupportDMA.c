@@ -138,7 +138,7 @@ void diskGet(support_t *currentSupportStruct) {
     int maxCount    = maxCylinder * maxHead * maxSector;
 
     /* Defensive check: valid sectionNumber and user address in KUSEG */
-    if ((sectionNumber < 0) || ((int) logicalAddress < KUSEG) || (sectionNumber > maxCount)) {
+    if ((sectionNumber < 0) || (sectionNumber > maxCount) || ((int) logicalAddress < KUSEG)) {
         /* Terminate the U-proc on bad arguments */
         SYSCALL(SYS9CALL, 0, 0, 0);
     }
@@ -232,7 +232,7 @@ int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flas
     int maxBlock = devRegArea->devreg[flashIndex].d_data1;
 
     /* Defensive check: Check for virtual address and blocknumber */
-    if ((blockNumber < 0) || (blockNumber >= maxBlock) || ((int) logicalAddress < KUSEG)) {
+    if ((blockNumber >= maxBlock) || ((int) logicalAddress < KUSEG)) {
         SYSCALL(SYS9CALL, 0, 0, 0); /* Terminate the U-proc */
     }
 
@@ -255,20 +255,23 @@ int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flas
     }
 
     /* Wait for the device to complete the operation */
-    int status = SYSCALL(SYS5CALL, FLASHINT, flashNumber, operation);
+    SYSCALL(SYS5CALL, FLASHINT, flashNumber, operation);
 
     /* Re-enable interrupts now that the atomic operation is complete */
     setSTATUS(getSTATUS() | IECON);
+
+    /* Get the status code from the device's register */
+    int statusCode = devRegArea->devreg[flashIndex].d_status;
 
     /* Release the device semaphore */
     SYSCALL(SYS4CALL, (unsigned int) &devSemaphores[flashIndex], 0, 0);
 
     /* Check the status code to see if an error occurred */
-    if (status != READY) {
+    if (statusCode != READY) {
         /* Status code = negative */
-        status = -1 * status;
+        statusCode = -1 * statusCode;
     } 
-    return status;
+    return statusCode;
 }
 
 /*
@@ -352,3 +355,5 @@ void flashGet(support_t *currentSupportStruct) {
     /* Return control to the instruction after SYSCALL instruction */
     LDST(&(currentSupportStruct->sup_exceptState[GENERALEXCEPT]));
 }
+
+/******************************* END OF FILE *********************************/

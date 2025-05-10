@@ -15,11 +15,13 @@
 #include "../h/vmSupport.h"
 #include "/usr/include/umps3/umps/libumps.h"
 
-/* Function declarations */
-extern void diskPut(support_t *currentSupportStruct); /* Disk put operation */
-extern void diskGet(support_t *currentSupportStruct); /* Disk get operation */
+/* Syscall declarations */
+extern void diskPut(support_t *currentSupportStruct);  /* Disk put operation */
+extern void diskGet(support_t *currentSupportStruct);  /* Disk get operation */
 extern void flashPut(support_t *currentSupportStruct); /* Flash put operation */
 extern void flashGet(support_t *currentSupportStruct); /* Flash get operation */
-extern int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation);
+
+/* Flash operation function */
+extern int  flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation);
 
 #endif /* DEVICESUPPORTDMA */
