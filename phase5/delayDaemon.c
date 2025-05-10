@@ -22,7 +22,7 @@
 /******************************* GLOBAL VARIABLES *****************************/
 
 /* Semphore for mutual exclusion on the Active Delay List (ADL) */
-HIDDEN int ADLsemaphore;                    
+HIDDEN int ADLsemaphore = 1;                /* For mutual exclusion */                    
 
 /* Head pointer for the Active Delay List */
 HIDDEN delayd_t *delayd_h;
@@ -90,14 +90,14 @@ HIDDEN void insertDelayd(delayd_t *newNode) {
     delayd_t *curr = delayd_h->d_next;
 
     /* Tranverse until we find the correct insertion point */
-    while (curr != NULL && newNode->d_wakeTime > curr->d_wakeTime) {
+    while (curr != NULL && newNode->d_wakeTime >= curr->d_wakeTime) {
         prev = curr;
         curr = curr->d_next;
     }
 
     /* Link the new node into the list */
-    prev->d_next = newNode;
-    newNode->d_next = curr;
+    newNode->d_next = curr;               /* Link to the next node */
+    prev->d_next    = newNode;            /* Link the previous node to the new node */
 }
 
 /******************************* ADL INITIALIZATION *****************************/
@@ -111,40 +111,38 @@ HIDDEN void insertDelayd(delayd_t *newNode) {
  * Returns      :   None
  */
 void initADL(void) {
-    /* Local variable: initial state for Delay Daemon */
+    /* Local variable declarations */
     state_t initialState;                       
 
-    /* Calculate ramtop to then get the penultimate frame for Delay Daemon's SP */
-    devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR; 
-    memaddr ramtop = devRegArea->rambase + devRegArea->ramsize;
+    /* Set up the ADL dummy head (node 0) */
+    delayd_h = &(delayEvents[0]);
+    delayd_h->d_wakeTime  = 0;
+    delayd_h->d_supStruct = NULL;
+    delayd_h->d_next      = &(delayEvents[UPROCMAX + 1]);   /* Point to the dummy tail */
 
-    /* Initialize the ADL semaphore for mutual exclusion */
-    ADLsemaphore = 1;
+    /* Set up the ADL dummy tail (node UPROCMAX + 1) */
+    delayd_h->d_next->d_wakeTime  = INFINITE;               /* This will never wake */
+    delayd_h->d_next->d_supStruct = NULL;   
+    delayd_h->d_next->d_next      = NULL;                   /* No next node */                  
 
     /* Build the free list of delay descriptors */
+    delaydFree_h = &(delayEvents[1]);    /* The first node in the free list */
+
     int i;
     for (i = 1; i < UPROCMAX; i++) {
         delayEvents[i].d_next = &(delayEvents[i + 1]);
     }
     delayEvents[UPROCMAX].d_next = NULL; /* Last node in the free list */
-    delaydFree_h = &delayEvents[1]; /* The first node in the free list */
 
-    /* Set up the ADL dummy head (node 0) */
-    delayd_h = &delayEvents[0];
-    delayd_h->d_wakeTime    = 0;
-    delayd_h->d_supStruct   = NULL;
-    delayd_h->d_next = &(delayEvents[UPROCMAX + 1]);    /* Point to the dummy tail */
-
-    /* Set up the ADL dummy tail (node UPROCMAX + 1) */
-    delayd_h->d_next->d_wakeTime  = INFINITE;           /* This will never wake */
-    delayd_h->d_next->d_supStruct = NULL;   
-    delayd_h->d_next->d_next      = NULL;               /* No next node */                  
-
+    /* Calculate ramtop to then get the penultimate frame for Delay Daemon's SP */
+    devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
+    memaddr ramTop = devRegArea->rambase + devRegArea->ramsize;
+    
     /* Initialize Delay Daemon's initial state */
-    initialState.s_pc = initialState.s_t9 = (memaddr) delayDaemon;
-    initialState.s_sp = ramtop - PAGESIZE;                      /* penultimate frame */
-    initialState.s_status = ALLOFF | IEPON | IMON | PLTON;      /* kernel mode, all interrupts enabled */
-    initialState.s_entryHI = ALLOFF | (DELAYASID << ASIDSHIFT); /* Set ASID to 0 */
+    initialState.s_pc = initialState.s_t9 = (memaddr) delayDaemon;  /* Set address to delayDaemon facility */
+    initialState.s_sp = ramTop - PAGESIZE;                          /* Penultimate frame */
+    initialState.s_status  = ALLOFF | IEPON | IMON | PLTON;         /* Kernel mode, all interrupts enabled */
+    initialState.s_entryHI = ALLOFF | (DELAYASID << ASIDSHIFT);     /* Set ASID to 0 */
 
     /* Create the Delay Daemon (Support Structure = NULL) */
     int status = SYSCALL(SYS1CALL, (unsigned int) &initialState, (unsigned int) NULL, 0);
@@ -168,7 +166,7 @@ void initADL(void) {
  */
 void delayDaemon(void) {
     /* Local variable to store current time */
-    cpu_t currentTime;
+    cpu_t timeNow;
 
     while (TRUE) {
         /* Execute SYS7: Sleep for 100ms */
@@ -178,11 +176,11 @@ void delayDaemon(void) {
         SYSCALL(SYS3CALL, (unsigned int) &ADLsemaphore, 0, 0);
 
         /* Get the current time */
-        STCK(currentTime);
+        STCK(timeNow);
 
         /* Loop through the ADL to find node whose wake up time has passed */
         delayd_t *curr = delayd_h->d_next;   
-        while ((curr!= NULL) && (curr->d_wakeTime <= currentTime)) {
+        while ((curr!= NULL) && (curr->d_wakeTime <= timeNow)) {
             /* Wake sleeping process by V on its private semaphore */
             SYSCALL(SYS4CALL, (unsigned int) &(curr->d_supStruct->sup_privateSemaphore), 0, 0);
 
@@ -212,10 +210,10 @@ void delayDaemon(void) {
  */
 void delay(support_t *currentSupportStruct) {
     /* Local variable to store current time */
-    cpu_t currentTime;
+    cpu_t timeNow;
 
-    /* Extract delay duration (ms) from register a0 */
-    int delayTime = currentSupportStruct->sup_exceptState[DELAYTIME].s_a0;
+    /* Extract delay duration (ms) from register a1 */
+    int delayTime = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
 
     /* Defensive programming: Ensure that the delayTime is nonnegative*/
     if (delayTime < 0) {
@@ -239,8 +237,8 @@ void delay(support_t *currentSupportStruct) {
     }
 
     /* Else, populate the delayed node with correct wakeTime and supportStruct*/
-    STCK(currentTime);
-    delayd->d_wakeTime  = currentTime + ((cpu_t) delayTime * UNITCONVERT); /* Convert to microseconds */
+    STCK(timeNow);
+    delayd->d_wakeTime  = timeNow + ((cpu_t) delayTime * UNITCONVERT); /* Convert to microseconds */
     delayd->d_supStruct = currentSupportStruct;
 
     /* Insert it into its proper location on the active list */
@@ -258,7 +256,7 @@ void delay(support_t *currentSupportStruct) {
     /* Re-enable interrupts now that the atomic operations are complete */
     setSTATUS(getSTATUS() | IECON);
 
-    /* Restore the process's state to the one saved in the support structure */
+    /* Return control to the instruction after SYSCALL instruction */
     LDST(&(currentSupportStruct->sup_exceptState[GENERALEXCEPT]));
 } 
 
