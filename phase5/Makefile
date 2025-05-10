@@ -20,12 +20,13 @@ SUPDIR = $(UMPS3_DIR_PREFIX)/share/umps3
 
 DEFS = ../h/const.h ../h/types.h ../h/pcb.h ../h/asl.h \
 	../h/initial.h ../h/interrupts.h ../h/scheduler.h ../h/exceptions.h \
-	../h/initProc.h ../h/vmSupport.h ../h/sysSupport.h ../h/delayDaemon.h\
+	../h/initProc.h ../h/vmSupport.h ../h/sysSupport.h \
+	../h/deviceSupportDMA.h ../h/delayDaemon.h \
 	$(INCDIR)/libumps.h Makefile
 
 OBJS = asl.o pcb.o \
        initial.o interrupts.o scheduler.o exceptions.o \
-       initProc.o vmSupport.o sysSupport.o delayDaemon.o \
+       initProc.o vmSupport.o sysSupport.o deviceSupportDMA.o delayDaemon.o
 
 CFLAGS = -ffreestanding -ansi -Wall -c -mips1 -mabi=32 -mfp32 -mno-gpopt -G 0 -fno-pic -mno-abicalls
 
@@ -41,7 +42,14 @@ EF = umps3-elf2umps
 UDEV = umps3-mkdev
 
 #main target
-all: kernel.core.umps 
+all: kernel.core.umps disk0.umps disk1.umps
+
+# use umps3-mkdev to create the disk0 device
+disk0.umps:
+	$(UDEV) -d disk0.umps
+
+disk1.umps:
+	$(UDEV) -d disk1.umps
 
 kernel.core.umps: kernel
 	$(EF) -k kernel

@@ -19,7 +19,11 @@
 #include "../h/initProc.h"
 #include "../h/vmSupport.h"
 #include "../h/sysSupport.h"
+#include "../h/deviceSupportDMA.h"
 #include "/usr/include/umps3/umps/libumps.h"
+
+/* For phase 4: move the flashOperation to deviceSupportDMA.c */
+extern int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation);
 
 /************************* VMSUPPORT GLOBAL VARIABLES *************************/
 
@@ -76,77 +80,6 @@ void mutex(int *semaphore, int doLock) {
     } else {
         /* Else, signal the semaphore instead */
         SYSCALL(SYS4CALL, (unsigned int) semaphore, 0, 0);  /* V operation */
-    }
-}
-
-/*
- * Function     :   flashDeviceOperation 
- * Purpose      :   Perform a synchronous block read or write on the flash backing store device
- *                  corresponding to the given ASID. Ensure atomicity by disabling interrupts 
- *                  during register writes and protecting device access by a semaphore
- * Parameters   :   operation    - FLASHREAD (read page) or FLASHWRITE (write page)
- *                  ASID         - The ASID of the process whose page are swapped
- *                  frameAddress - Physical address of the target frame
- *                  pageNumber   - Logical page/block number for flash device
- * Returns      :   int - Device status code from d_status register (SUCCESS or error code) 
- */
-void flashDeviceOperation(support_t *currentSupportStruct, int operation, int asid, int frameAddress, int pageNumber) {
-    /* --------------------------------------------------------------
-     * 1. Identify the device number for the flash
-     * -------------------------------------------------------------- */
-    /* Pointer to the device register area */
-    devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
-
-    /* Compute the index into the device register array */
-    int index = ((FLASHINT - OFFSET) * DEVPERINT) + (asid - 1);
-
-    /* --------------------------------------------------------------
-     * 2. Gain mutual exclusion over the device 
-     * -------------------------------------------------------------- */
-    mutex(&devSemaphores[index], TRUE);
-
-    /* --------------------------------------------------------------
-     * 3. Perform the flash device operation
-     * --------------------------------------------------------------- */
-    /* Write the frame's starting address into device's DATA0 field */
-    devRegArea->devreg[index].d_data0 = frameAddress;
-
-    /* Disable interrupts so that COMMAND + SYS5 is atomic */
-    setInterrupt(FALSE);
-
-    /* If the operation requested is a READ operation */
-    if (operation == FLASHREAD) {
-        /* Set the device's command register to READ and put in the block number */
-        devRegArea->devreg[index].d_command = (pageNumber << BLOCKSHIFT) | READBLK;
-    } else {
-        /* Set the device's command register to WRITE and put in the block number */
-        devRegArea->devreg[index].d_command = (pageNumber << BLOCKSHIFT) | WRITEBLK;
-    }
-
-    /* Wait for the device to complete the operation */
-    SYSCALL(SYS5CALL, FLASHINT, (asid - 1), operation);
-
-    /* Re-enable interrupts now that the atomic operation is complete */
-    setInterrupt(TRUE);
-    
-    /* Get the status code from the device's register */
-    int statusCode = devRegArea->devreg[index].d_status;
-
-   /* --------------------------------------------------------------
-    * 4. Release device semaphore
-    * -------------------------------------------------------------- */
-    mutex(&devSemaphores[index], FALSE);
-
-   /* --------------------------------------------------------------
-    * 5. Check the status code to see if an error occurred
-    * -------------------------------------------------------------- */
-    /* Any code that is different from READY (-1) is treated as an error */
-    if (statusCode != READY) {
-        /* Release the Swap Pool semaphore */
-        mutex(&swapPoolSemaphore, FALSE);
-
-        /* Terminate the current process */
-        VMprogramTrapExceptionHandler(currentSupportStruct); /* Terminate the process */
     }
 }
 
@@ -319,13 +252,26 @@ void pager(void) {
         setInterrupt(TRUE); 
 
         /* c. Update process's backing store */
-        flashDeviceOperation(currentSupportStruct, FLASHWRITE, swapPoolTable[frameNumber].asid, frameAddress, swapPoolTable[frameNumber].vpn);
+        int status1 = flashOperation(currentSupportStruct, frameAddress, swapPoolTable[frameNumber].asid - 1, swapPoolTable[frameNumber].vpn, FLASHWRITE);  
+
+        /* Check the status code returned to see if an error occurred */
+
+        if (status1 != READY) {
+            /* Terminate the current process */
+            VMprogramTrapExceptionHandler(currentSupportStruct); 
+        }
     }
     
     /*--------------------------------------------------------------*
     * 9. Read the contents of the Current Process's backing store/flash device
     *---------------------------------------------------------------*/ 
-    flashDeviceOperation(currentSupportStruct, FLASHREAD, currentSupportStruct->sup_asid, frameAddress, missingPageNo);
+    int status2 = flashOperation(currentSupportStruct, frameAddress, currentSupportStruct->sup_asid - 1, missingPageNo, FLASHREAD);
+    
+    /* Check the status code returned to see if an error occurred */
+    if (status2 != READY) {
+        /* Terminate the current process */
+        VMprogramTrapExceptionHandler(currentSupportStruct); 
+    }
 
     /*--------------------------------------------------------------*
     * 10. Update the Swap Pool table's entry to reflect frame's new content
