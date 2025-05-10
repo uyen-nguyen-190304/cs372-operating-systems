@@ -47,7 +47,7 @@
 
 #define INITIALPLT          5000                /* time slice for scheduler in milliseconds (5ms) */
 #define INITIALINTTIMER     100000              /* time slice for system-wide Internal Timer (100ms) */   
-#define INFINITE            0xFFFFFFFF          /* infinite time */
+#define INFINITE            0x7FFFFFFF          /* infinite time */
 
 /* timer, timescale, TOD-LO and other bus regs */
 #define RAMBASEADDR		    0x10000000          /* start address of RAM */
@@ -225,7 +225,7 @@
 #define INDEXMASK           0x80000000          /* mask for Index.P bit */
 
 /* User Process Configuration */
-#define UPROCMAX            8                   /* max concurrent user processes */
+#define UPROCMAX            2                   /* max concurrent user processes */
 #define UPROCTEXTSTART      0x800000B0          /* start address of user text segment */
 #define USERSTACKTOP        0xC0000000          /* user stack top address */
 #define ASIDSHIFT           6                   /* address space identifier shift */
@@ -262,7 +262,7 @@
 /******************************* Swap Pool Constants *****************************/
 
 #define SWAPPOOLSTART       0x20020000          /* swap pool's starting address */
-#define SWAPPOOLSIZE        2 * UPROCMAX        /* swap pool's size (frames) */
+#define SWAPPOOLSIZE        (2 * UPROCMAX)      /* swap pool's size (frames) */
 #define EMPTYFRAME          -1                  /* indicator of empty frame in swap pool */
 
 /******************************* Disk Constants *****************************/
@@ -271,13 +271,15 @@
 #define HEADMASK            0x0000FF00          /* mask for head number */
 #define HEADSHIFT           8                   /* shift to retrieve head number */
 #define SECTORMASK          0x000000FF          /* mask for sector number */
-#define DISKSTART           0x20020000          /* start address of disk */
 #define SEEKCYL             2                   /* seek cylinder number */
-#define READBLK             3                   /* disk read block command */
-#define WRITEBLK            4                   /* disk write block command */
+#define DISKREADBLK         3                   /* disk read block command */
+#define DISKWRITEBLK        4                   /* disk write block command */
 #define CYLNUMSHIFT         8                   /* shift for cylinder number */
-#define SECTORNUMSHIFT      8                  /* shift for sector number */
+#define SECTORNUMSHIFT      8                   /* shift for sector number */
 #define HEADNUMSHIFT        16                  /* shift for head number */
+
+#define DISKSTART           (SWAPPOOLSTART + (SWAPPOOLSIZE * PAGESIZE))     /* start address of disk */
+#define FLASHSTART          (DISKSTART + (DEVPERINT * PAGESIZE))            /* start address of flash memory */
 
 /******************************* Delay Constants *****************************/
 
