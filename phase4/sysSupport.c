@@ -50,6 +50,9 @@ extern void diskGet(support_t *currentSupportStruct);                           
 extern void flashPut(support_t *currentSupportStruct);                                /* SYS16 */
 extern void flashGet(support_t *currentSupportStruct);                                /* SYS17 */
 
+/* Phase 5 */
+extern void delay(support_t *currentSupportStruct);                                   /* SYS18 */
+
 /******************************* SYSCALL IMPLEMENTATIONS *******************************/
 
 /* 
@@ -577,6 +580,11 @@ void VMsyscallExceptionHandler(state_PTR savedState, support_t *currentSupportSt
             /* SYS17: Read buffer from flash */
             flashGet(currentSupportStruct);
             break;
+
+        case SYS18CALL:
+        /* SYS18: Delay process */
+        delay(currentSupportStruct);
+        break;
 
         default:
             /* For anything else, treat as *fatal* program trap */

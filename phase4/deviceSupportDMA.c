@@ -1,6 +1,9 @@
 /*************************** DEVICESUPPORTDMA.c ***********************************
  * 
- * [DESCRIPTION LATER]
+ * This module implements disk and flash operation for U-procs using DMA support.
+ * It provides routines to read and write sectors/blocks via device registers,
+ * including copying data to/from the DMA buffer, CHS conversion, and automic
+ * command execution with interrupts disabled.
  * 
  * Written by  : Uyen Nguyen
  * Last update : 2025/05/10
@@ -19,33 +22,38 @@
 /******************************* DISK OPERATIONS *****************************/
 
 /*
- * 
- * 
- *  
+ * Function     :   diskPut
+ * Purpose      :   Write a page from user memory into a disk sector via DMA.
+ *                  This includes retrieving the parameters from the exception
+ *                  state, checking the validity of the parameters, copying the
+ *                  data from the U-proc's address space to the DMA buffer, and
+ *                  executing the disk write command.
+ * Parameters  :   currentSupportStruct - pointer to the support structure
+ * Returns     :   None 
  */
 void diskPut(support_t *currentSupportStruct) {
-    /* Retrieve the parameters from the exception state */
+    /* Retrieve parameters from the U-proc exception state */
     memaddr *logicalAddress = (memaddr *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
     int     diskNumber      = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
     int     sectionNumber   = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a3;
 
-    /* Retrieve the three dimensional parameters */
+    /* Read device geometry: cylinders, heads, sectors */
     devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
     int maxCylinder = (devRegArea->devreg[diskNumber].d_data1) >> CYLINDERSHIFT;
     int maxHead     = ((devRegArea->devreg[diskNumber].d_data1) & HEADMASK) >> HEADSHIFT ;
     int maxSector   = (devRegArea->devreg[diskNumber].d_data1) & SECTORMASK;
     int maxCount    = maxCylinder * maxHead * maxSector;
 
-    /* Defensive programming: check the virtual address and section number */
+    /* Defensive check: valid sectionNumber and user address in KUSEG */
     if ((sectionNumber < 0) || (sectionNumber > maxCount) || ((int) logicalAddress < KUSEG)) {
-        /* Terminate the U-proc */
+        /* Terminate the U-proc on bad arguments */
         SYSCALL(SYS9CALL, 0, 0, 0);
     }
 
-    /* Compute the DMA buffer address */
+    /* Covert linear sector number to CHS components */
     memaddr *dmaBufferAddress = (memaddr *) (DISKSTART + (diskNumber * PAGESIZE));
 
-    /* Copy the data from the disk sector -> DMA buffer */
+    /* Copy data from user -> DMA buffer */
     int i;
     for (i = 0; i < (PAGESIZE / WORDLEN); i++) {
         dmaBufferAddress[i] = logicalAddress[i];
@@ -72,7 +80,7 @@ void diskPut(support_t *currentSupportStruct) {
     /* Re-enable interrupts now that the atomic operation is complete */
     setSTATUS(getSTATUS() | IECON);
 
-    /* If the seek device was successful, continue with the write operation */
+    /* If the seek device was successful, WRITEBLK with new DMA buffer address */
     if (status == SUCCESS) {
         /* Write the starting address of the DMA buffer in the device's DATA0 field */
         devRegArea->devreg[diskNumber].d_data0 = (unsigned int) dmaBufferAddress;
@@ -98,7 +106,7 @@ void diskPut(support_t *currentSupportStruct) {
         /* Set v0 to the negative of the status code to signal an error */
         currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = -1 * status;
     } else {
-        /* Set v0 to the number of bytes written */
+        /* Else, place the status code in v0 */
         currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = status;
     }
 
@@ -107,26 +115,31 @@ void diskPut(support_t *currentSupportStruct) {
 }
 
 /*
- * 
- * 
- *  
+ * Function     :   diskGet
+ * Purpose      :   Read a page from a disk sector into user memory via DMA.
+ *                  This includes retrieving the parameters from the exception
+ *                  state, checking the validity of the parameters, executing the
+ *                  disk read command, and copying the data from the DMA buffer to
+ *                  he U-proc's address space.
+ * Parameters   :   currentSupportStruct - pointer to the support structure
+ * Returns      :   None
  */
 void diskGet(support_t *currentSupportStruct) {
-    /* Retrieve the parameters from the exception state */
+    /* Retrieve parameters from the U-proc exception state */
     memaddr *logicalAddress = (memaddr *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
     int     diskNumber      = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
     int     sectionNumber   = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a3;
 
-    /* Retrieve the three dimensional parameters */
+    /* Read device geometry: cylinders, heads, sectors */
     devregarea_t *devRegArea = (devregarea_t *) RAMBASEADDR;
     int maxCylinder = (devRegArea->devreg[diskNumber].d_data1) >> CYLINDERSHIFT;
     int maxHead     = ((devRegArea->devreg[diskNumber].d_data1) & HEADMASK) >> HEADSHIFT ;
     int maxSector   = (devRegArea->devreg[diskNumber].d_data1) & SECTORMASK;
     int maxCount    = maxCylinder * maxHead * maxSector;
 
-    /* Defensive programming: check the virtual address and section number */
+    /* Defensive check: valid sectionNumber and user address in KUSEG */
     if ((sectionNumber < 0) || ((int) logicalAddress < KUSEG) || (sectionNumber > maxCount)) {
-        /* Terminate the U-proc */
+        /* Terminate the U-proc on bad arguments */
         SYSCALL(SYS9CALL, 0, 0, 0);
     }
 
@@ -136,7 +149,7 @@ void diskGet(support_t *currentSupportStruct) {
     /* Gain mutual exclusion over the device's device register */
     SYSCALL(SYS3CALL, (unsigned int) &devSemaphores[diskNumber], 0, 0);
 
-    /* Covert sector number to CHS */
+    /* Covert linear sector number to CHS components */
     int cylinder = sectionNumber / (maxHead * maxSector);
     int temp     = sectionNumber % (maxHead * maxSector);
     int head     = temp / maxSector;
@@ -182,11 +195,10 @@ void diskGet(support_t *currentSupportStruct) {
         for (i = 0; i < (PAGESIZE / WORDLEN); i++) {
             logicalAddress[i] = dmaBufferAddress[i];
         }
-
-        /* Set v0 to the number of bytes read */
+        /* Place the status code in v0 */
         currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = status;
     } else {
-        /* Set v0 to the negative of the status code to signal an error */
+        /* Else, set v0 to the negative of the status code to signal an error */
         currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = -1 * status;
     }
 
@@ -197,9 +209,17 @@ void diskGet(support_t *currentSupportStruct) {
 /******************************* FLASH OPERATIONS *****************************/
 
 /*
- * 
- * 
- * 
+ * Function     :   flashOperation
+ * Purpose      :   Perform a flash operation (read or write) on the specified
+ *                  flash device. This includes checking the validity of the parameters,
+ *                  gaining mutual exclusion over the device's device register, executing
+ *                  the command, and releasing the device semaphore.
+ * Parameters   :   currentSupportStruct - pointer to the support structure
+ *                  logicalAddress - address of the data to be read/written
+ *                  flashNumber - number of the flash device
+ *                  blockNumber - block number to read/write
+ *                  operation - operation to perform (read or write)
+ * Returns      :   status - status code indicating success or failure
  */
 int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flashNumber, int blockNumber, int operation) {
     /* Pointer to the device register area */
@@ -211,7 +231,7 @@ int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flas
     /* Retrieve the maximum number of blocks for the device */
     int maxBlock = devRegArea->devreg[flashIndex].d_data1;
 
-    /* Defensive programming: Check for virtual address and blocknumber */
+    /* Defensive check: Check for virtual address and blocknumber */
     if ((blockNumber < 0) || (blockNumber >= maxBlock) || ((int) logicalAddress < KUSEG)) {
         SYSCALL(SYS9CALL, 0, 0, 0); /* Terminate the U-proc */
     }
@@ -235,7 +255,7 @@ int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flas
     }
 
     /* Wait for the device to complete the operation */
-    int status = SYSCALL(SYS5CALL, FLASHINT, flashNumber, FALSE);
+    int status = SYSCALL(SYS5CALL, FLASHINT, flashNumber, operation);
 
     /* Re-enable interrupts now that the atomic operation is complete */
     setSTATUS(getSTATUS() | IECON);
@@ -251,16 +271,25 @@ int flashOperation(support_t *currentSupportStruct, int logicalAddress, int flas
     return status;
 }
 
-
+/*
+ * Function     :   flashPut
+ * Purpose      :   Write a page from user memory into a flash block via DMA.
+ *                  This includes retrieving the parameters from the exception
+ *                  state, checking the validity of the parameters, copying the
+ *                  data from the U-proc's address space to the DMA buffer, and
+ *                  executing the flash write command.
+ * Parameters   :   currentSupportStruct - pointer to the support structure
+ * Returns      :   None 
+ */
 void flashPut(support_t *currentSupportStruct) {
     /* Retrieve the parameters from the exception state */
     memaddr *logicalAddress = (memaddr *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
     int flashNumber         = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
     int blockNumber         = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a3;
 
-    /* Defensive programming: check the virtual address */
+    /* Defensive check: check the virtual address */
     if ((int) logicalAddress < KUSEG) {
-        /* Terminate the U-proc */
+        /* Terminate the U-proc on bad arguments */
         SYSCALL(SYS9CALL, 0, 0, 0);
     }
 
@@ -283,18 +312,25 @@ void flashPut(support_t *currentSupportStruct) {
     LDST(&(currentSupportStruct->sup_exceptState[GENERALEXCEPT]));
 }
 
-
-
-
+/*
+ * Function     :   flashGet
+ * Purpose      :   Read a page from a flash block into user memory via DMA.
+ *                  This includes retrieving the parameters from the exception
+ *                  state, checking the validity of the parameters, executing the
+ *                  flash read command, and copying the data from the DMA buffer to
+ *                  the U-proc's address space.
+ * Parameters   :   currentSupportStruct - pointer to the support structure
+ * Returns      :   None
+ */
 void flashGet(support_t *currentSupportStruct) {
     /* Retrieve the parameters from the exception state */
     memaddr *logicalAddress = (memaddr *) currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a1;
     int flashNumber         = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a2;
     int blockNumber         = currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_a3;
 
-    /* Defensive programming: check the virtual address */
+    /* Defensive programming: Check the virtual address */
     if ((int) logicalAddress < KUSEG) {
-        /* Terminate the U-proc */
+        /* Terminate the U-proc on bad arguments */
         SYSCALL(SYS9CALL, 0, 0, 0);
     }
 
@@ -313,12 +349,6 @@ void flashGet(support_t *currentSupportStruct) {
     /* Place the status code into v0 before return */
     currentSupportStruct->sup_exceptState[GENERALEXCEPT].s_v0 = status;
 
-
     /* Return control to the instruction after SYSCALL instruction */
     LDST(&(currentSupportStruct->sup_exceptState[GENERALEXCEPT]));
 }
-
-
-
-
-
