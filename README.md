@@ -77,7 +77,7 @@ Each subsequent phase builds upon previous phases, with Phase 1-3 forming the Pa
 
 ## IV. Testing 
 
-Each phase includes dedicated testing program(s) to verify functionality and robustness. For Phase 1 and Phase 2, the test file is located within the respective phase directories. For Phase 3 and beyond, several testers are available in the `tester\` directory, providing comprehensive diagnostics and validation. These testers can be utilized by loading them into the flash devices within the µMPS3 emulator.
+Each phase includes dedicated testing program(s) to verify functionality and robustness. For Phase 1 and Phase 2, the test file is located within the respective phase directories. For Phase 3 and beyond, several testers are available in the `testers/` directory, providing comprehensive diagnostics and validation. These testers can be utilized by loading them into the flash devices within the µMPS3 emulator.
 
 ## V. Setup Instructions
 
